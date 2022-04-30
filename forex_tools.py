@@ -26,6 +26,7 @@ fred = fa.Fred(api_key = '47aed364aa18b64e34f2f9695bd6dd67')
 
 # Import forex data from yfinance
 data = yf.download(tickers = 'EURUSD=X', period  = '25y', interval = '1mo')
+data_daily = yf.download(tickers = 'EURUSD=X', period  = '3y', interval = '1d')
 data_SP500_usd = yf.download(tickers = '^GSPC', period  = '25y', interval = '1mo')
 data_FTSE_eur = yf.download(tickers = '^FTSE', period  = '25y', interval = '1mo')
 
@@ -46,7 +47,9 @@ data_FTSE_eur_M.index = data_FTSE_eur_M.index.to_period('M')
 data_FTSE_eur_M = data_FTSE_eur_M.groupby(data_FTSE_eur_M.index).first()
 data_FTSE_eur_M = pd.DataFrame(data_FTSE_eur_M['Open']).rename(columns = {'Open': 'FTSE_eur'})
 
-
+data_FTSE_SP500_M_diff = pd.concat([data_SP500_usd_M, data_FTSE_eur_M], axis = 1)
+data_FTSE_SP500_M_diff = data_FTSE_SP500_M_diff['FTSE_eur']-data_FTSE_SP500_M_diff['SP500_usd']
+data_FTSE_SP500_M_diff = pd.DataFrame(data_FTSE_SP500_M_diff/data_FTSE_SP500_M_diff.max(), columns = ['data_FTSE_SP500_M_diff'])
 
 #%% download fed data from FRED
 #gdp_usd = fred.get_series('GDPC1') #real gdp
@@ -69,6 +72,36 @@ debt_per_gdp_usd = fred.get_series('GFDEGDQ188S')
 file_path = r'C:\Users\derre\Downloads'
 file_name = '\\amCharts.csv'
 
+PCEPI = fred.get_series('PCEPI')
+PCEPI_core = fred.get_series('CORESTICKM159SFRBATL')
+PCE_usd = fred.get_series('PCE')
+PCE_usd_rolling = pd.DataFrame(PCE_usd.diff(periods = 12)/PCE_usd, columns = ['PCE_usd'])
+
+PCE_eur = fred.get_series('NAEXKP02EZQ189S')
+PCE_eur_rolling = pd.DataFrame(PCE_eur.diff(periods = 12)/PCE_eur, columns = ['PCE_eur'])
+PCE_diff = pd.concat([PCE_usd_rolling, PCE_eur_rolling],axis = 1).interpolate()
+PCE_diff = PCE_diff['PCE_usd']-PCE_diff['PCE_eur']
+PCE_diff.index = PCE_diff.index.to_period('M')
+PCE_diff = pd.DataFrame(PCE_diff, columns = ['PCE_diff'])
+
+CPI_Energy_usd = fred.get_series('CPIENGSL')
+CPI_Energy_eur = fred.get_series('ELGAS0EUCCM086NEST')
+CPI_Energy_eur_2 = fred.get_series('ENRGY0EZ19M086NEST')
+
+CPI_Core_usd = fred.get_series('CPILFESL')
+CPI_Core_eur
+
+#%%
+CPI_Energy_ratio = (CPI_Energy_usd/CPI_Energy_usd.max())-(CPI_Energy_eur/CPI_Energy_eur.max())
+CPI_Energy_ratio = CPI_Energy_ratio/CPI_Energy_ratio.max()
+CPI_Energy_ratio.index = CPI_Energy_ratio.index.to_period('M')
+CPI_Energy_ratio = pd.DataFrame(CPI_Energy_ratio, columns = ['CPI_Energy_ratio'])
+
+PCEPI_Roll = pd.DataFrame(PCEPI.diff(periods = 12), columns = ['PCEPI'])
+PCEPI_Roll.index = PCEPI_Roll.index.to_period('M')
+
+PCEPI_core.index = PCEPI_core.index.to_period('M')
+PCEPI_core = pd.DataFrame(PCEPI_core, columns = ['PCEPI_core'])
 
 #%%
 debt_per_gdp_eur = pd.read_csv(file_path + file_name)
@@ -87,13 +120,6 @@ debt_per_gdp_ratio = pd.DataFrame(debt_per_gdp_ratio['debt_per_gdp_usd']/debt_pe
 
 #%% generate monthly period dataframes
 
-SP500_per_gdp = pd.concat([data_SP500_usd_M, gdp_usd_M], axis = 1).ffill()
-SP500_per_gdp = SP500_per_gdp['SP500_usd']/SP500_per_gdp['gdp_usd']
-
-FTSE_per_gdp = pd.concat([data_FTSE_eur_M, gdp_eur_M], axis = 1).ffill()
-FTSE_per_gdp = FTSE_per_gdp['FTSE_eur']/FTSE_per_gdp['gdp_eur']
-
-SP500_FTSE_ratio = pd.DataFrame(FTSE_per_gdp/SP500_per_gdp, columns = ['SP500_FTSE_ratio'])
 
 #%%
 
@@ -103,7 +129,7 @@ cpi_usd_M.index = cpi_usd.index.to_period('M')
 cpi_eur_M = cpi_eur.copy()
 cpi_eur_M.index = cpi_eur.index.to_period('M')
 
-cpi_ratio = pd.DataFrame(cpi_eur_M-cpi_usd_M, columns = ['cpi_ratio'])
+cpi_ratio = pd.DataFrame(cpi_usd_M/cpi_usd_M.max()-cpi_eur_M/cpi_eur_M.max(), columns = ['cpi_ratio'])
 
 gdp_usd_M = gdp_usd.copy()
 gdp_usd_M.index = gdp_usd_M.index.to_period('M')
@@ -121,15 +147,12 @@ rate_eur_M = rate_eur.copy()
 rate_eur_M.index = rate_eur_M.index.to_period('M')
 rate_eur_M = pd.DataFrame(rate_eur_M.groupby(rate_eur_M.index).first(), columns = ['rate_eur_M'])
 
-
 rate_usd_M = rate_usd.copy()
 rate_usd_M.index = rate_usd_M.index.to_period('M')
 rate_usd_M = pd.DataFrame(rate_usd_M.groupby(rate_usd_M.index).first(), columns = ['rate_usd_M'])
 
 # combine rates into single dataframe
 rates = pd.concat([rate_eur_M, rate_usd_M], axis = 1)
-#rates.index = rates.index.to_period('M')
-#rates = rates.groupby(rates.index).first()
 
 #find rate ratio
 rate_ratio = pd.DataFrame(((rate_eur/rate_usd).dropna()/10).loc[year:], columns = ['rate_ratio'])
@@ -140,14 +163,13 @@ rate_dif = pd.DataFrame(((rate_eur-rate_usd*1.25).dropna()).loc[year:], columns 
 rate_dif.index = rate_dif.index.to_period('M')
 rate_dif = rate_dif.groupby(rate_dif.index).first()
 
+SP500_per_gdp = pd.concat([data_SP500_usd_M, gdp_usd_M], axis = 1).ffill()
+SP500_per_gdp = SP500_per_gdp['SP500_usd']/SP500_per_gdp['gdp_usd']
 
+FTSE_per_gdp = pd.concat([data_FTSE_eur_M, gdp_eur_M], axis = 1).ffill()
+FTSE_per_gdp = FTSE_per_gdp['FTSE_eur']/FTSE_per_gdp['gdp_eur']
 
-
-#%% combine m3 datasets into single dataframe
-plot_df = pd.concat([m3_usd, m3_eur], axis = 1)
-plot_df[year:].plot()
-
-#%% generate monthly period dataframes
+SP500_FTSE_ratio = pd.DataFrame(FTSE_per_gdp/SP500_per_gdp, columns = ['SP500_FTSE_ratio'])
 
 assets_eur_slice = assets_eur.loc[year:]
 assets_eur_slice.index = assets_eur_slice.index.to_period('M')
@@ -162,14 +184,10 @@ assets_per_gdp_eur = (assets_eur_slice/gdp_eur_M['gdp_eur']).dropna()
 assets_per_gdp_ratio = pd.DataFrame(assets_per_gdp_eur/assets_per_gdp_usd, columns = ['assets_per_gdp_ratio'])
 assets_per_gdp_diff = pd.DataFrame(assets_per_gdp_usd-assets_per_gdp_eur, columns = ['assets_per_gdp_diff'])
 
-#%%
-# find asset ratio
 asset_ratio = pd.DataFrame((assets_eur_slice/assets_usd_slice), columns = ['asset_ratio'])
 
 #slice currency pair data
 pair_data = data_M['Open'].loc[year:]
-
-
 
 #slice m1 data and convert to monthly period dataframe
 m1_eur_slice = m1_eur.loc[year:]
@@ -177,7 +195,6 @@ m1_eur_slice.index = m1_eur_slice.index.to_period('M')
 
 m1_usd_slice = m1_usd.loc[year:]
 m1_usd_slice.index = m1_usd_slice.index.to_period('M')
-
 
 #slice m3 data and convert to monthly period dataframe
 m3_eur_slice = m3_eur.loc[year:]
@@ -191,14 +208,12 @@ m1_ratio = pd.DataFrame(m1_eur_slice/m1_usd_slice, columns = ['m1_ratio'])
 m3_ratio = pd.DataFrame(m3_eur_slice/m3_usd_slice, columns = ['m3_ratio'])
 
 
-
-
 #%%
 test_in = rate_dif/20
 test = pd.concat([ gdp_ratio/gdp_ratio.max(), m3_ratio], axis = 1).ffill()
 test = pd.DataFrame(test.mean(axis = 1), columns = ['test'])
 
-plot_df = pd.concat([debt_per_gdp_ratio, SP500_FTSE_ratio, assets_per_gdp_diff, asset_ratio, m3_ratio, pair_data, rate_dif/rate_dif.max(), rate_usd_M, rate_eur_M, gdp_ratio/gdp_ratio.max(), test, m1_ratio, cpi_ratio*-1], axis = 1).ffill()
+plot_df = pd.concat([PCE_diff, CPI_Energy_ratio, SP500_FTSE_ratio, assets_per_gdp_diff, asset_ratio, m3_ratio, pair_data, rate_dif/rate_dif.max(), rate_usd_M, rate_eur_M, gdp_ratio/gdp_ratio.max(), test, m1_ratio, cpi_ratio*-1], axis = 1).interpolate()
 ax = plt.figure()
 #plot_df['asset_ratio'].plot(legend = True)
 (plot_df['m3_ratio']+plot_df['assets_per_gdp_diff']*0.3).plot()
@@ -210,18 +225,22 @@ plot_df['Open'].plot(secondary_y = True)
 #plot_df['test'].plot()
 #(plot_df['rate_usd_M'].loc[year:]/10+1).plot()
 #(plot_df['rate_eur_M'].loc[year:]/10+1).plot()
-((plot_df['debt_per_gdp_ratio']*-1*0 + plot_df['assets_per_gdp_diff']*0.3 + plot_df['rate_dif'].loc[year:]*0.25 + plot_df['cpi_ratio']*0.15+plot_df['m3_ratio'])).plot()
-(0.15*plot_df['cpi_ratio']+1).plot()
+comparitor = plot_df['CPI_Energy_ratio']
+comparitor = comparitor/comparitor.max()
+#comparitor.plot()
+plot_df_net = ((plot_df['PCE_diff']*4 + plot_df['CPI_Energy_ratio']*6 + plot_df['assets_per_gdp_diff']*1.25 + plot_df['rate_dif'].loc[year:]*1 + plot_df['cpi_ratio']*-1*0+plot_df['m3_ratio']*4))
+plot_df_net = plot_df_net/plot_df_net.max()*plot_df['Open'].max()
+plot_df_net.plot()
+#(plot_df['CPI_Energy_ratio']*11).plot()
+#((plot_df['CPI_Energy_ratio']*6+ plot_df['assets_per_gdp_diff']*-1 + plot_df['rate_dif'].loc[year:]*1 + plot_df['cpi_ratio']*3+plot_df['m3_ratio']*0)).plot()
+#(0.15*plot_df['cpi_ratio']+1).plot()
 #((assets_per_gdp_ratio).diff()*100+1).plot()
+#(assets_per_gdp_diff.diff()+1).plot(ax = ax)
+#(plot_df['assets_per_gdp_diff']+1).plot()
 ax.legend()
 
 #%%
-ax2 = plt.figure()
-cpi_usd_M.plot()
-cpi_eur_M.plot()
 
-#%%
-#(assets_per_gdp_eur).plot()
-#(assets_per_gdp_usd).plot()
-#(-assets_per_gdp_eur-assets_per_gdp_usd).plot()
-(((assets_per_gdp_usd-assets_per_gdp_eur))*0.3+0.75).plot()
+PCEPI_Food_Energy =  pd.concat([PCEPI_core, PCEPI_Roll], axis = 1)
+PCEPI_Food_Energy = pd.DataFrame(PCEPI_Food_Energy['PCEPI'] -  PCEPI_Food_Energy['PCEPI_core'], columns = ['PCEPI_Food_Energy'])
+PCEPI_Food_Energy.plot()
