@@ -89,7 +89,7 @@ CPI_Energy_eur = fred.get_series('ELGAS0EUCCM086NEST')
 CPI_Energy_eur_2 = fred.get_series('ENRGY0EZ19M086NEST')
 
 CPI_Core_usd = fred.get_series('CPILFESL')
-CPI_Core_eur
+#CPI_Core_eur
 
 #%%
 CPI_Energy_ratio = (CPI_Energy_usd/CPI_Energy_usd.max())-(CPI_Energy_eur/CPI_Energy_eur.max())
@@ -228,7 +228,7 @@ plot_df['Open'].plot(secondary_y = True)
 comparitor = plot_df['CPI_Energy_ratio']
 comparitor = comparitor/comparitor.max()
 #comparitor.plot()
-plot_df_net = ((plot_df['PCE_diff']*4 + plot_df['CPI_Energy_ratio']*6 + plot_df['assets_per_gdp_diff']*1.25 + plot_df['rate_dif'].loc[year:]*1 + plot_df['cpi_ratio']*-1*0+plot_df['m3_ratio']*4))
+plot_df_net = ((plot_df['PCE_diff']*4 + plot_df['CPI_Energy_ratio']*8 + plot_df['assets_per_gdp_diff']*1.25 + plot_df['rate_dif'].loc[year:]*1 + plot_df['cpi_ratio']*-1*0+plot_df['m3_ratio']*4))
 plot_df_net = plot_df_net/plot_df_net.max()*plot_df['Open'].max()
 plot_df_net.plot()
 #(plot_df['CPI_Energy_ratio']*11).plot()
