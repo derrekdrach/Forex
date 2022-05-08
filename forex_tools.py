@@ -91,6 +91,13 @@ CPI_Energy_eur_2 = fred.get_series('ENRGY0EZ19M086NEST')
 CPI_Core_usd = fred.get_series('CPILFESL')
 #CPI_Core_eur
 
+exports_usd = fred.get_series('EXPGS')
+exports_eur = fred.get_series('XTEXVA01EZM667S')
+#%%
+exports_ratio = pd.DataFrame()
+exports_ratio['exports_ratio'] = (((exports_usd/exports_usd.max())/(exports_eur/exports_eur.max()))**-1).dropna()
+exports_ratio.index = exports_ratio.index.to_period('M')
+exports_ratio.plot()
 #%%
 CPI_Energy_ratio = (CPI_Energy_usd/CPI_Energy_usd.max())-(CPI_Energy_eur/CPI_Energy_eur.max())
 CPI_Energy_ratio = CPI_Energy_ratio/CPI_Energy_ratio.max()
@@ -209,16 +216,20 @@ m3_ratio = pd.DataFrame(m3_eur_slice/m3_usd_slice, columns = ['m3_ratio'])
 
 
 #%%
-test_in = rate_dif/20
+start_date = 1999 #'2014-06'
+end_date = '2022-06'
+start_date = str(start_date)
+end_date = str(end_date)
 test = pd.concat([ gdp_ratio/gdp_ratio.max(), m3_ratio], axis = 1).ffill()
 test = pd.DataFrame(test.mean(axis = 1), columns = ['test'])
 
-plot_df = pd.concat([PCE_diff, CPI_Energy_ratio, SP500_FTSE_ratio, assets_per_gdp_diff, asset_ratio, m3_ratio, pair_data, rate_dif/rate_dif.max(), rate_usd_M, rate_eur_M, gdp_ratio/gdp_ratio.max(), test, m1_ratio, cpi_ratio*-1], axis = 1).interpolate()
+plot_df = pd.concat([exports_ratio, PCE_diff, CPI_Energy_ratio, SP500_FTSE_ratio, assets_per_gdp_diff, asset_ratio, m3_ratio, pair_data, rate_dif/rate_dif.max(), rate_usd_M, rate_eur_M, gdp_ratio/gdp_ratio.max(), test, m1_ratio, cpi_ratio*-1], axis = 1).interpolate()
 ax = plt.figure()
+plot_df = plot_df.loc[start_date:end_date].dropna()
 #plot_df['asset_ratio'].plot(legend = True)
-(plot_df['m3_ratio']+plot_df['assets_per_gdp_diff']*0.3).plot()
+#(plot_df['m3_ratio']+plot_df['assets_per_gdp_diff']).plot()
+#plot_df['m3_ratio'].plot()
 #plot_df['m1_ratio'].plot()
-plot_df['Open'].plot(secondary_y = True)
 #(plot_df['rate_dif'].loc[year:]*0.25).plot()
 #plot_df['gdp_ratio'].plot()
 #(plot_df['m3_ratio']/plot_df['gdp_ratio']).plot()
@@ -228,9 +239,55 @@ plot_df['Open'].plot(secondary_y = True)
 comparitor = plot_df['CPI_Energy_ratio']
 comparitor = comparitor/comparitor.max()
 #comparitor.plot()
-plot_df_net = ((plot_df['PCE_diff']*4 + plot_df['CPI_Energy_ratio']*8 + plot_df['assets_per_gdp_diff']*1.25 + plot_df['rate_dif'].loc[year:]*1 + plot_df['cpi_ratio']*-1*0+plot_df['m3_ratio']*4))
-plot_df_net = plot_df_net/plot_df_net.max()*plot_df['Open'].max()
-plot_df_net.plot()
+"""
+weights = {'PCE_diff': 0,
+           'CPI_Energy_ratio': 16,
+           'assets_per_gdp_diff': 0,
+           'rate_dif': 4,
+           'cpi_ratio': -8,
+           'm3_ratio': 12,
+           'gdp_ratio': 0,
+           'exports_ratio': 10
+           }
+"""
+
+weights = {'PCE_diff': 0,
+           'CPI_Energy_ratio': 0,
+           'assets_per_gdp_diff': 0,
+           'rate_dif': 0.5,
+           'cpi_ratio': -2.5*0-1.5,
+           'm3_ratio': 0,
+           'gdp_ratio': 0,
+           'exports_ratio': 7
+           }
+
+plot_df['net'] = ((plot_df['PCE_diff']*weights['PCE_diff'] 
+                + plot_df['CPI_Energy_ratio']*weights['CPI_Energy_ratio']  
+                + plot_df['assets_per_gdp_diff']*weights['assets_per_gdp_diff'] 
+                + plot_df['rate_dif'].loc[year:]*weights['rate_dif']  
+                + plot_df['cpi_ratio']*weights['cpi_ratio'] 
+                + plot_df['m3_ratio']*weights['m3_ratio'] 
+                + plot_df['gdp_ratio']*weights['gdp_ratio']
+                + plot_df['exports_ratio']*weights['exports_ratio']))
+plot_df['net'] = plot_df['net']*((plot_df['net'].max()-plot_df['net'].min())/(plot_df['Open'].max()-plot_df['Open'].min()))**-1
+plot_df['net'] = plot_df['net'] + (plot_df['Open'].mean() - plot_df['net'].mean() )
+plot_df['m3_ratio'] = plot_df['m3_ratio']*((plot_df['m3_ratio'].max()-plot_df['m3_ratio'].min())/(plot_df['Open'].max()-plot_df['Open'].min()))**-1
+plot_df['m3_ratio'] = plot_df['m3_ratio'] + (plot_df['Open'].mean() - plot_df['m3_ratio'].mean() )
+
+ax1 = plot_df[['Open', 'm3_ratio']].plot(color = ['r', 'g'], style = ['-', '-'])
+
+#ax2 = ax1.twinx()
+#ax2.spines['right'].set_position(('axes', 1.0))
+plot_df['net_sgn'] = np.sign(plot_df[['net']].rolling(3).mean().diff())
+plot_df[['net_sgn']].plot(ax = ax1, color = ['b'], style = ['-o'])
+#plot_df_net = plot_df_net  + 22
+#ratio = (plot_df_net.mean()/plot_df_net.min())/(plot_df['Open'].mean()/plot_df['Open'].min())
+#print(ratio)
+#plot_df_net = plot_df_net/plot_df_net.max()*plot_df['Open'].max()
+
+#ax3 = ax1.twinx()
+#ax3.spines['right'].set_position(('axes', 1.1))
+#plot_df['net'].plot(ax = ax3, color = 'b')
 #(plot_df['CPI_Energy_ratio']*11).plot()
 #((plot_df['CPI_Energy_ratio']*6+ plot_df['assets_per_gdp_diff']*-1 + plot_df['rate_dif'].loc[year:]*1 + plot_df['cpi_ratio']*3+plot_df['m3_ratio']*0)).plot()
 #(0.15*plot_df['cpi_ratio']+1).plot()
@@ -239,7 +296,7 @@ plot_df_net.plot()
 #(plot_df['assets_per_gdp_diff']+1).plot()
 ax.legend()
 
-#%%
+    #%%
 
 PCEPI_Food_Energy =  pd.concat([PCEPI_core, PCEPI_Roll], axis = 1)
 PCEPI_Food_Energy = pd.DataFrame(PCEPI_Food_Energy['PCEPI'] -  PCEPI_Food_Energy['PCEPI_core'], columns = ['PCEPI_Food_Energy'])
