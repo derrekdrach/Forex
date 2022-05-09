@@ -10,6 +10,7 @@ Created on Sun Apr 17 19:16:32 2022
 year = '1999'
 
 #%%Import standard modules
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -194,7 +195,8 @@ assets_per_gdp_diff = pd.DataFrame(assets_per_gdp_usd-assets_per_gdp_eur, column
 asset_ratio = pd.DataFrame((assets_eur_slice/assets_usd_slice), columns = ['asset_ratio'])
 
 #slice currency pair data
-pair_data = data_M['Open'].loc[year:]
+pair_data = pd.DataFrame()
+pair_data['pair'] = ((data_M['Open'] + data_M['Close'])/2).loc[year:]
 
 #slice m1 data and convert to monthly period dataframe
 m1_eur_slice = m1_eur.loc[year:]
@@ -255,10 +257,10 @@ weights = {'PCE_diff': 0,
            'CPI_Energy_ratio': 0,
            'assets_per_gdp_diff': 0,
            'rate_dif': 0.5,
-           'cpi_ratio': -2.5*0-1.5,
-           'm3_ratio': 0,
+           'cpi_ratio': -2.5,
+           'm3_ratio': 1,
            'gdp_ratio': 0,
-           'exports_ratio': 7
+           'exports_ratio': 6
            }
 
 plot_df['net'] = ((plot_df['PCE_diff']*weights['PCE_diff'] 
@@ -269,17 +271,31 @@ plot_df['net'] = ((plot_df['PCE_diff']*weights['PCE_diff']
                 + plot_df['m3_ratio']*weights['m3_ratio'] 
                 + plot_df['gdp_ratio']*weights['gdp_ratio']
                 + plot_df['exports_ratio']*weights['exports_ratio']))
-plot_df['net'] = plot_df['net']*((plot_df['net'].max()-plot_df['net'].min())/(plot_df['Open'].max()-plot_df['Open'].min()))**-1
-plot_df['net'] = plot_df['net'] + (plot_df['Open'].mean() - plot_df['net'].mean() )
-plot_df['m3_ratio'] = plot_df['m3_ratio']*((plot_df['m3_ratio'].max()-plot_df['m3_ratio'].min())/(plot_df['Open'].max()-plot_df['Open'].min()))**-1
-plot_df['m3_ratio'] = plot_df['m3_ratio'] + (plot_df['Open'].mean() - plot_df['m3_ratio'].mean() )
+plot_df['net'] = plot_df['net']*((plot_df['net'].max()-plot_df['net'].min())/(plot_df['pair'].max()-plot_df['pair'].min()))**-1
+plot_df['net'] = plot_df['net'] + (plot_df['pair'].mean() - plot_df['net'].mean() )
+plot_df['m3_ratio'] = plot_df['m3_ratio']*((plot_df['m3_ratio'].max()-plot_df['m3_ratio'].min())/(plot_df['pair'].max()-plot_df['pair'].min()))**-1
+plot_df['m3_ratio'] = plot_df['m3_ratio'] + (plot_df['pair'].mean() - plot_df['m3_ratio'].mean() )
 
-ax1 = plot_df[['Open', 'm3_ratio']].plot(color = ['r', 'g'], style = ['-', '-'])
+ax = plot_df[['pair']].plot(color = ['g'], style = ['-'])
 
 #ax2 = ax1.twinx()
 #ax2.spines['right'].set_position(('axes', 1.0))
-plot_df['net_sgn'] = np.sign(plot_df[['net']].rolling(3).mean().diff())
-plot_df[['net_sgn']].plot(ax = ax1, color = ['b'], style = ['-o'])
+roll = 1
+roll_exit = 1
+diff_threshold = 0.01
+diff_threshold_exit = 0.01
+stop = -0.05
+
+plot_df['net_sgn'] = (np.sign(plot_df[['net']].rolling(roll).mean().diff()))
+plot_df['net_sgn'][plot_df['net'].diff().abs() < diff_threshold] = float('NaN')
+plot_df['net_sgn'] = plot_df['net_sgn'].ffill()
+
+plot_df['net_sgn_exit'] = (np.sign(plot_df[['net']].rolling(roll_exit).mean().diff()))
+plot_df['net_sgn_exit'][plot_df['net'].diff().abs() < diff_threshold_exit] = float('NaN')
+plot_df['net_sgn_exit'] = plot_df['net_sgn_exit'].ffill()
+
+(plot_df[['net_sgn']]/3+1.3).plot(ax = ax, color = ['b', 'r'], style = ['-o', '-'])
+plot_df[['net']].rolling(roll).mean().plot(ax = ax, color = ['m'], style = ['--'])
 #plot_df_net = plot_df_net  + 22
 #ratio = (plot_df_net.mean()/plot_df_net.min())/(plot_df['Open'].mean()/plot_df['Open'].min())
 #print(ratio)
@@ -295,6 +311,20 @@ plot_df[['net_sgn']].plot(ax = ax1, color = ['b'], style = ['-o'])
 #(assets_per_gdp_diff.diff()+1).plot(ax = ax)
 #(plot_df['assets_per_gdp_diff']+1).plot()
 ax.legend()
+plot_df['net_sgn'].iloc[-1] = plot_df['net_sgn'].iloc[-1]*-1
+trades = ((plot_df['net_sgn'].dropna().diff()/-2)*plot_df['pair'])
+short = trades[trades > 0].reset_index().iloc[:,1]
+long = trades[trades < 0].reset_index().iloc[:,1]
+new_index = (trades[trades > 0].index)
+trades_net = pd.concat([short, long], axis = 1, ignore_index = True)
+trades_net = trades_net.set_index(new_index)
+trades_net = trades_net.dropna().sum(axis = 1)
+trades_net[trades_net < stop] = stop
+total = trades_net.sum()
+print(total)
+#trades_net.cumsum().plot()
+plt.figure()
+trades_net.cumsum().plot()
 
     #%%
 
