@@ -27,8 +27,8 @@ import fredapi as fa
 #%%
 
 symbols_df = pd.DataFrame()
-period = '20d'
-interval = '5m'
+period = '25y'
+interval = '1d'
 
 
 for symbol in symbol_list_den:
@@ -72,3 +72,9 @@ compare_slice.plot()
 
 #%%
 compare.iloc[:,0].subtract(compare.iloc[:,1]).plot()
+
+#%%
+symbols_df_grouped = symbols_df.copy()
+symbols_df_grouped.index = symbols_df_grouped.index.to_period('M')
+symbols_df_grouped = symbols_df_grouped.groupby(symbols_df_grouped.index).first()
+symbols_df_grouped.mean(axis = 1).rolling(1).mean().plot()

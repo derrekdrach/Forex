@@ -26,7 +26,7 @@ fred = fa.Fred(api_key = '47aed364aa18b64e34f2f9695bd6dd67')
 #%% Functions
 
 # Import forex data from yfinance
-data = yf.download(tickers = 'EURUSD=X', period  = '25y', interval = '1mo')
+data = yf.download(tickers = 'AUDUSD=X', period  = '25y', interval = '1mo')
 data_daily = yf.download(tickers = 'EURUSD=X', period  = '3y', interval = '1d')
 data_SP500_usd = yf.download(tickers = '^GSPC', period  = '25y', interval = '1mo')
 data_FTSE_eur = yf.download(tickers = '^FTSE', period  = '25y', interval = '1mo')
@@ -92,13 +92,20 @@ CPI_Energy_eur_2 = fred.get_series('ENRGY0EZ19M086NEST')
 CPI_Core_usd = fred.get_series('CPILFESL')
 #CPI_Core_eur
 
-exports_usd = fred.get_series('EXPGS')
-exports_eur = fred.get_series('XTEXVA01EZM667S')
+exports_usd_quarterly = fred.get_series('EXPGS') # BOPTEXP monthly
+exports_usd = fred.get_series('BOPTEXP') # BOPTEXP monthly
+
+exports_eur_quarterly = fred.get_series('XTEXVA01EZQ664S')#'XTEXVA01EZM667S') monthly 
+exports_eur = fred.get_series('XTEXVA01EZM667S')#'XTEXVA01EZM667S') monthly
+insert_time = pd.to_datetime('2022-02-01')
+
+exports_eur.loc[insert_time] = 2.537e11
+
 #%%
 exports_ratio = pd.DataFrame()
 exports_ratio['exports_ratio'] = (((exports_usd/exports_usd.max())/(exports_eur/exports_eur.max()))**-1).dropna()
 exports_ratio.index = exports_ratio.index.to_period('M')
-exports_ratio.plot()
+
 #%%
 CPI_Energy_ratio = (CPI_Energy_usd/CPI_Energy_usd.max())-(CPI_Energy_eur/CPI_Energy_eur.max())
 CPI_Energy_ratio = CPI_Energy_ratio/CPI_Energy_ratio.max()
@@ -196,7 +203,7 @@ asset_ratio = pd.DataFrame((assets_eur_slice/assets_usd_slice), columns = ['asse
 
 #slice currency pair data
 pair_data = pd.DataFrame()
-pair_data['pair'] = ((data_M['Open'] + data_M['Close'])/2).loc[year:]
+pair_data['pair'] = data_M['Close'].loc[year:]#((data_M['Open'] + data_M['Close'])/2).loc[year:]
 
 #slice m1 data and convert to monthly period dataframe
 m1_eur_slice = m1_eur.loc[year:]
@@ -254,13 +261,13 @@ weights = {'PCE_diff': 0,
 """
 
 weights = {'PCE_diff': 0,
-           'CPI_Energy_ratio': 0,
+           'CPI_Energy_ratio': 1*0,
            'assets_per_gdp_diff': 0,
-           'rate_dif': 0.5,
-           'cpi_ratio': -2.5,
-           'm3_ratio': 1,
-           'gdp_ratio': 0,
-           'exports_ratio': 6
+           'rate_dif': 0.5*0,
+           'cpi_ratio': -2*0,
+           'm3_ratio': 0,
+           'gdp_ratio': 10*0,
+           'exports_ratio': 1
            }
 
 plot_df['net'] = ((plot_df['PCE_diff']*weights['PCE_diff'] 
@@ -280,22 +287,23 @@ ax = plot_df[['pair']].plot(color = ['g'], style = ['-'])
 
 #ax2 = ax1.twinx()
 #ax2.spines['right'].set_position(('axes', 1.0))
-roll = 1
-roll_exit = 1
+roll = 4
+shift = 0
 diff_threshold = 0.01
-diff_threshold_exit = 0.01
 stop = -0.05
+diff_range = 4
 
-plot_df['net_sgn'] = (np.sign(plot_df[['net']].rolling(roll).mean().diff()))
-plot_df['net_sgn'][plot_df['net'].diff().abs() < diff_threshold] = float('NaN')
-plot_df['net_sgn'] = plot_df['net_sgn'].ffill()
+trade_on = 'pair'
+#trade_on = 'net'
 
-plot_df['net_sgn_exit'] = (np.sign(plot_df[['net']].rolling(roll_exit).mean().diff()))
-plot_df['net_sgn_exit'][plot_df['net'].diff().abs() < diff_threshold_exit] = float('NaN')
-plot_df['net_sgn_exit'] = plot_df['net_sgn_exit'].ffill()
+#plot_df['net_sgn'] = np.sign(plot_df[[trade_on]].rolling(roll).mean().diff().shift(shift))
+plot_df['net_sgn'] = np.sign(plot_df[[trade_on]].rolling(roll).mean().diff(diff_range).diff(diff_range).shift(shift))
+plot_df['net_sgn'][plot_df[trade_on].rolling(roll).mean().diff(diff_range).diff(diff_range).shift(shift).abs() < diff_threshold] = float('NaN')
+plot_df['net_sgn'] = plot_df['net_sgn'].ffill().dropna()
 
-(plot_df[['net_sgn']]/3+1.3).plot(ax = ax, color = ['b', 'r'], style = ['-o', '-'])
-plot_df[['net']].rolling(roll).mean().plot(ax = ax, color = ['m'], style = ['--'])
+
+(plot_df[['net_sgn']]/8+1.3).plot(ax = ax, color = ['b', 'r'], style = ['-o', '-'])
+plot_df[[trade_on]].rolling(roll).mean().shift(0).plot(ax = ax, color = ['m'], style = ['--'])
 #plot_df_net = plot_df_net  + 22
 #ratio = (plot_df_net.mean()/plot_df_net.min())/(plot_df['Open'].mean()/plot_df['Open'].min())
 #print(ratio)
@@ -315,9 +323,9 @@ plot_df['net_sgn'].iloc[-1] = plot_df['net_sgn'].iloc[-1]*-1
 trades = ((plot_df['net_sgn'].dropna().diff()/-2)*plot_df['pair'])
 short = trades[trades > 0].reset_index().iloc[:,1]
 long = trades[trades < 0].reset_index().iloc[:,1]
-new_index = (trades[trades > 0].index)
+#new_index = (trades[trades < 0].index)
 trades_net = pd.concat([short, long], axis = 1, ignore_index = True)
-trades_net = trades_net.set_index(new_index)
+#trades_net = trades_net.set_index(new_index)
 trades_net = trades_net.dropna().sum(axis = 1)
 trades_net[trades_net < stop] = stop
 total = trades_net.sum()
