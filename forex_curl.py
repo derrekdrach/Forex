@@ -22,7 +22,7 @@ import yfinance as yf
 # example: data_daily = yf.download(tickers = 'EURUSD=X', period  = '3y', interval = '1d')
 
 # Import FRED data: Federal Reserve Economic Data
-import fredapi as fa
+#import fredapi as fa
 #example: fred = fa.Fred(api_key = '47aed364aa18b64e34f2f9695bd6dd67')
 
 #%%
@@ -33,10 +33,10 @@ interval = '1h'
 
 
 for symbol in symbol_list_den:
-    open_daily = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
+    open_df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
     #open_daily = yf.download(tickers = symbol + '=X', interval = interval, start = "2022-04-20", end = "2022-04-25")['Close']
-    open_daily = open_daily/open_daily.iloc[0]
-    open_daily[open_daily > 2] = float('NaN')
+    open_df = open_df/open_df.iloc[0]
+    open_df[open_df > 2] = float('NaN')
     symbols_df[symbol] = open_daily
 
 symbols_df.ffill()
@@ -48,27 +48,20 @@ for symbol in symbol_list_num:
     open_daily = open_daily/open_daily.iloc[0]
     symbols_df[symbol] = open_daily
 
+"""
 
-symbols_df_wk = pd.DataFrame()
-period = '3y'
-interval = '1wk'
+symbols_df_dly = pd.DataFrame()
+period = '2y'
+interval = '1d'
 
 
 for symbol in symbol_list_den:
-    open_daily = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
+    open_df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
     #open_daily = open_daily.rename(index = {0:symbol})
-    open_daily = open_daily/open_daily.iloc[0]
-    symbols_df_wk[symbol] = open_daily
-    #symbols_df = pd.concat([symbols_df, open_daily], axis = 1)
-    
+    open_df = open_df/open_df.iloc[0]
+    symbols_df_dly[symbol] = open_df
+    #symbols_df = pd.concat([symbols_df, open_daily], axis = 1)    
 
-for symbol in symbol_list_num:
-    open_daily = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
-    open_daily = open_daily**-1
-    open_daily = open_daily/open_daily.iloc[0]
-    symbols_df_wk[symbol] = open_daily
-    
-"""
 
 #%%
 
@@ -219,7 +212,7 @@ elif(method == 2):
                         'EURGBP':24*4}
     direction = -1
     
-elif(method == 2.5):
+elif(method == 2.5): # use daily
     # for diff method - hourly
     diff_thresh_dict = {'EURUSD':0.0008,
                         'GBPUSD':0.0002,
