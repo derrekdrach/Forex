@@ -35,9 +35,9 @@ interval = '1h'
 for symbol in symbol_list_den:
     open_df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
     #open_daily = yf.download(tickers = symbol + '=X', interval = interval, start = "2022-04-20", end = "2022-04-25")['Close']
-    open_df = open_df/open_df.iloc[0]
+    open_df = open_df/open_df.mean(axis = 0)
     open_df[open_df > 2] = float('NaN')
-    symbols_df[symbol] = open_daily
+    symbols_df[symbol] = open_df
 
 symbols_df.ffill()
     
@@ -51,16 +51,18 @@ for symbol in symbol_list_num:
 """
 
 symbols_df_dly = pd.DataFrame()
-period = '2y'
+period = '25y'
 interval = '1d'
 
 
 for symbol in symbol_list_den:
     open_df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
     #open_daily = open_daily.rename(index = {0:symbol})
-    open_df = open_df/open_df.iloc[0]
+    open_df = open_df/open_df.mean(axis = 0)
+    open_df[open_df > 2] = float('NaN')
     symbols_df_dly[symbol] = open_df
     #symbols_df = pd.concat([symbols_df, open_daily], axis = 1)    
+symbols_df_dly.ffill()
 
 
 #%%
@@ -70,7 +72,7 @@ symbols_df_save = symbols_df.copy()
 symbols_df = symbols_df_save[['EURUSD']]#, 'GBPUSD']]# 'USDCHF', 'USDJPY']]
 
 #%%
-symbols_df = symbols_df_save
+symbols_df = symbols_df_dly#[['EURUSD']]
 #%%
 """
 #weekly
@@ -99,11 +101,11 @@ direction = 1
 # 2 = diff - hourly
 # 3 = diff - 1 minute
 
-method = 2
+method = 1.5
 
-roll = 1
+roll = 10
 shift = 1
-stop = -0.015
+stop = -0.15
 
 if(method == 1):
     #hourly - curl
@@ -142,15 +144,15 @@ if(method == 1):
     direction = -1
     
 if(method == 1.5):
-    #hourly - curl
+    #daily - curl
     
     
     # for curl method
-    x = 0.002
+    x = 0.005
     diff_thresh_dict = {'EURUSD':x,
                         'GBPUSD':x,
                         'AUDUSD':x,
-                        'NZDUSD':x,
+                        'NZDUSD':0.05,
                         'USDCAD':x,
                         'USDCHF':x,
                         'USDJPY':x,
@@ -158,26 +160,27 @@ if(method == 1.5):
                         }
     
     
-    x = 60
-    diff_range_dict = { 'EURUSD':x,
-                        'GBPUSD':x,
-                        'AUDUSD':x,
-                        'NZDUSD':x,
-                        'USDCAD':x,
-                        'USDCHF':x,
-                        'USDJPY':x,
-                        'EURGBP':x}
-    x = 1
-    diff_range_2_dict ={'EURUSD':x*1,
-                        'GBPUSD':x*1,
-                        'AUDUSD':x*1,
-                        'NZDUSD':x*1,
-                        'USDCAD':x*1,
-                        'USDCHF':x*1,
-                        'USDJPY':x*1,
-                        'EURGBP':x*1
+    x = 5
+    diff_range_dict = { 'EURUSD':x*25,
+                        'GBPUSD':x*20,
+                        'AUDUSD':x*20,
+                        'NZDUSD':x*20,
+                        'USDCAD':x*25,
+                        'USDCHF':x*25,
+                        'USDJPY':x*25,
+                        'EURGBP':x*25}
+    #x = 5*26
+    diff_range_2_dict ={'EURUSD':x*25,
+                        'GBPUSD':x*20,
+                        'AUDUSD':x*20,
+                        'NZDUSD':x*20,
+                        'USDCAD':x*25,
+                        'USDCHF':x*25,
+                        'USDJPY':x*25,
+                        'EURGBP':x*25
                         }
-    direction = -1
+    
+    direction = 1
 
 #diff_threshold = 0.01
 
@@ -213,12 +216,12 @@ elif(method == 2):
     direction = -1
     
 elif(method == 2.5): # use daily
-    # for diff method - hourly
-    diff_thresh_dict = {'EURUSD':0.0008,
-                        'GBPUSD':0.0002,
+    # diff method
+    diff_thresh_dict = {'EURUSD':0.0015,
+                        'GBPUSD':0.0005,
                         'AUDUSD':0.0002,
                         'NZDUSD':0.0006,
-                        'USDCAD':0.0004,
+                        'USDCAD':0.001,
                         'USDCHF':0.0002,
                         'USDJPY':0.0002,
                         'EURGBP':0.0002}
@@ -232,11 +235,11 @@ elif(method == 2.5): # use daily
                         'USDJPY':1,
                         'EURGBP':1}
     
-    roll_dict =        {'EURUSD':8*5,
-                        'GBPUSD':24*7,
+    roll_dict =        {'EURUSD':5*5,
+                        'GBPUSD':5*5,
                         'AUDUSD':24*4,
                         'NZDUSD':24*4,
-                        'USDCAD':7*5,
+                        'USDCAD':1*5,
                         'USDCHF':24*6,
                         'USDJPY':24*6,
                         'EURGBP':24*7}
@@ -324,8 +327,8 @@ visual_2 = plot_df.rolling(roll).mean().diff(diff_range).diff(diff_range_2).shif
 
 
 
-#plot_df_net.iloc[-1] = plot_df_net.iloc[-1]*-1
-trades_all = ((plot_df_net.diff()/-2)*plot_df)*direction
+plot_df_net.iloc[-1] = plot_df_net.iloc[-1]*-1
+trades_all = ((-1*np.sign(plot_df_net.diff()))*plot_df)*direction
 
 trades_net = pd.DataFrame()
 sums = pd.DataFrame()
@@ -351,16 +354,17 @@ for column in trades_all:
 
 
 plt.figure()
-print(sums['net'].mean())
+print('mean:',sums['net'].mean())
+print('sum:',sums['net'].sum())
 sums['net'] = sums['net'] - 0.00025
 sums = sums.sort_index()
 sums['net'].cumsum().plot()
 ax.legend()
     
 
-#%%
+
 plot_each = True
-time_start = '2022-05'
+time_start = '2000-05'
 if(plot_each == True):
     
     for pair in plot_df_net:
@@ -373,7 +377,7 @@ if(plot_each == True):
     for pair in plot_df_net:
         test = sums[sums['pair'] == pair]
         test['net'][time_start:].cumsum().plot()
-
+    ax.legend()
 
 #%%
 trades_time = trades[['net']].rename(columns = {'net':'trades'})
