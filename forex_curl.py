@@ -72,7 +72,7 @@ symbols_df_dly = symbols_df_dly.ffill()
     
 #%%
 symbol_list_den = ['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY', 'EURGBP']
-#symbol_list_den = ['GBPUSD']
+#symbol_list_den = ['EURUSD', 'GBPUSD']
 
 symbols_df = pd.DataFrame()
 
@@ -93,7 +93,7 @@ symbols_df_dly_save = symbols_df_dly.copy()
 symbols_df_save = symbols_df.copy()
 
 #%%
-symbols_df_dly = symbols_df_dly_save[['EURUSD']]#, 'GBPUSD']]# 'USDCHF', 'USDJPY']]
+symbols_df_dly = symbols_df_dly_save[['EURUSD', 'E']]#, 'GBPUSD']]# 'USDCHF', 'USDJPY']]
 
 symbols_df = symbols_df_save[['EURUSD']]
 
@@ -138,6 +138,7 @@ shift = 1
 #stop = -0.025
 
 
+
 # for diff method - daily
 diff_thresh_dict = {'EURUSD':0.0008,
                     'GBPUSD':0.0008,
@@ -175,7 +176,58 @@ for symbol in symbols_loop_df:
     plot_df_net_loop[symbol][symbols_loop_df[symbol].diff(diff_range_dict[symbol]).rolling(roll_dict[symbol]).mean().abs() < diff_thresh_dict[symbol]] = float('NaN')
 plot_df_net_loop = plot_df_net_loop.ffill()    
 plot_df_net_dly = plot_df_net_loop.copy()
+"""
+diff_thresh_dict = {'EURUSD':0.03,
+                    'GBPUSD':0.03,
+                    'AUDUSD':0.03,
+                    'NZDUSD':0.03,
+                    'USDCAD':0.03,
+                    'USDCHF':0.03,
+                    'USDJPY':0.03,
+                    'EURGBP':0.03}
 
+x = 5*25
+diff_range_dict =  {'EURUSD':x,
+                    'GBPUSD':x,
+                    'AUDUSD':x,
+                    'NZDUSD':x,
+                    'USDCAD':x,
+                    'USDCHF':x,
+                    'USDJPY':x,
+                    'EURGBP':x}
+
+
+diff_range_2_dict ={'EURUSD':x*1,
+                    'GBPUSD':x*1,
+                    'AUDUSD':x*1,
+                    'NZDUSD':x*1,
+                    'USDCAD':x*1,
+                    'USDCHF':x*1,
+                    'USDJPY':x*1,
+                    'EURGBP':x*1
+                    }
+
+roll_dict =        {'EURUSD':8*5,
+                    'GBPUSD':8*5,
+                    'AUDUSD':8*5,
+                    'NZDUSD':8*5,
+                    'USDCAD':6*5,
+                    'USDCHF':7*5,
+                    'USDJPY':9*5,
+                    'EURGBP':6*5}
+direction = 1
+
+
+plot_df_net_loop = symbols_df_dly.copy()
+symbols_loop_df = symbols_df_dly.copy()
+for symbol in symbols_loop_df:
+    plot_df_net_loop[symbol] = np.sign(symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
+    plot_df_net_loop[symbol][symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift).abs() < diff_thresh_dict[symbol]] = float('NaN')
+    
+    
+plot_df_net_loop = plot_df_net_loop.ffill()    
+plot_df_net_dly = plot_df_net_loop.copy()
+"""
 
 method = 2
 
@@ -251,6 +303,16 @@ elif(method == 2):
                         'USDJPY':24*15,
                         'EURGBP':24*10}
     
+    #x = 24*10
+    #roll_dict =        {'EURUSD':x,
+    #                    'GBPUSD':x,
+    #                    'AUDUSD':24*15,
+    #                    'NZDUSD':24*10,
+    #                    'USDCAD':24*10,
+    #                    'USDCHF':24*10,
+    #                    'USDJPY':24*10,
+    #                    'EURGBP':24*10}
+    
     
 
     direction = -1
@@ -295,7 +357,7 @@ for symbol in symbols_df:
     
 
 stop = -0.5
-limit = 0.25
+limit = 0.15
 sums = pd.DataFrame()
 
 for symbol in symbols_df:
