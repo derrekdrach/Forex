@@ -8,6 +8,8 @@ Created on Wed May 11 17:54:22 2022
 
 #%% User inputs
 symbol_list = ['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY', 'EURGBP']
+symbol_list = [ 'EURUSD']
+
 futures_list = ['ZR']
 #symbol_list_den = ['EURUSD', 'AUDUSD']
 #compare_symbol_list = ['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY']
@@ -32,27 +34,59 @@ import yfinance as yf
 #%%
 
 symbols_df = pd.DataFrame()
-period = '2y'
+symbols_df_high = pd.DataFrame()
+symbols_df_low = pd.DataFrame()
+period = '60d'
 interval = '1h'
 
 
 for symbol in symbol_list:
     print(symbol)
 
-    open_df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)['Close']
+    df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)
+    
     #open_daily = yf.download(tickers = symbol + '=X', interval = interval, start = "2022-04-20", end = "2022-04-25")['Close']
-    symbols_df[symbol] = open_df
+    symbols_df[symbol] = df['Open']
+    #symbols_df_high[symbol] = df['High']
+    #symbols_df_low[symbol] = df['Low']
     #open_df = open_df/open_df.iloc[0]
     #open_df[open_df > 2] = float('NaN')
     
 
+period = '60d'
+interval = '5m'
 
-symbols_df[symbols_df > 2] = float('NaN')    
+for symbol in symbol_list:
+    print(symbol)
+
+    df = yf.download(tickers = symbol + '=X', period  = period, interval = interval)
+    
+    #open_daily = yf.download(tickers = symbol + '=X', interval = interval, start = "2022-04-20", end = "2022-04-25")['Close']
+    
+    symbols_df_high[symbol] = df['High']
+    symbols_df_low[symbol] = df['Low']
+
+   
+
 symbols_df_price = symbols_df.copy()
 symbols_df = symbols_df_price/symbols_df_price.iloc[0]
-symbols_df = symbols_df.ffill()
+symbols_df_high = symbols_df_high/symbols_df_price.iloc[0]
+symbols_df_low = symbols_df_low/symbols_df_price.iloc[0]
 
-symbols_df_dly = symbols_df.resample('d').first().dropna()
+symbols_df[symbols_df > 2] = float('NaN')    
+symbols_df_high[symbols_df_high > 2] = float('NaN')    
+symbols_df_low[symbols_df_low > 2] = float('NaN') 
+
+symbols_df = symbols_df.ffill()
+symbols_df_high = symbols_df_high.ffill()
+symbols_df_low = symbols_df_low.ffill()
+
+symbols_df.index = pd.to_datetime(symbols_df.index)
+symbols_df_high.index = pd.to_datetime(symbols_df_high.index)
+symbols_df_low.index = pd.to_datetime(symbols_df_low.index)
+
+
+symbols_df_dly = symbols_df.resample('d').first().ffill()
 
 #%%
 symbols_df_dly = pd.DataFrame()
@@ -72,9 +106,10 @@ symbols_df_dly = symbols_df_dly.ffill()
     
 #%%
 symbol_list_den = ['EURUSD', 'GBPUSD', 'AUDUSD', 'NZDUSD', 'USDCAD', 'USDCHF', 'USDJPY', 'EURGBP']
-#symbol_list_den = ['EURUSD', 'GBPUSD']
+symbol_list_den = [ 'EURUSD', 'GBPUSD']
 
 symbols_df = pd.DataFrame()
+
 
 
 file_directory = r'C:\Users\derre\Desktop\data\scripts'
@@ -84,9 +119,24 @@ for symbol in symbol_list_den:
     file_name = '_timeStamp.txt'
     open_df.index = pd.read_csv(file_directory + '\\' + symbol + file_name, header = None).values.flatten()
     symbols_df[symbol] = open_df[symbol]
-symbols_df = symbols_df/symbols_df.iloc[-1]
+    
+symbols_df = symbols_df/symbols_df.iloc[0]
 symbols_df.index = pd.to_datetime(symbols_df.index)
 symbols_df_dly = symbols_df.resample('d').first().dropna()
+    
+#%%
+symbols_df_1m = pd.DataFrame()
+
+for symbol in symbol_list_den:
+    file_name = '_1m_dataout.txt'
+    open_df = pd.read_csv(file_directory + '\\' +  symbol + file_name, names = [symbol])
+    file_name = '_1m_timeStamp.txt'
+    open_df.index = pd.read_csv(file_directory + '\\' + symbol + file_name, header = None).values.flatten()
+    symbols_df_1m[symbol] = open_df[symbol]
+    
+symbols_df_1m = symbols_df_1m/symbols_df_1m.iloc[0]
+symbols_df_1m.index = pd.to_datetime(symbols_df_1m.index)
+
 #%%
 
 symbols_df_dly_save = symbols_df_dly.copy()
@@ -276,14 +326,14 @@ if(method == 1):
 
 elif(method == 2):
     # for diff method - hourly
-    diff_thresh_dict = {'EURUSD':0.00005,
-                        'GBPUSD':0.00003,
-                        'AUDUSD':0.00006,
-                        'NZDUSD':0.0001,
-                        'USDCAD':0.00002,
-                        'USDCHF':0.00002,
-                        'USDJPY':0.00001,
-                        'EURGBP':0.00002}
+    diff_thresh_dict = {'EURUSD':0.0007,
+                        'GBPUSD':0.0007,
+                        'AUDUSD':0.0005,
+                        'NZDUSD':0.0005,
+                        'USDCAD':0.0005,
+                        'USDCHF':0.0005,
+                        'USDJPY':0.0005,
+                        'EURGBP':0.0005}
     
     diff_range_dict =  {'EURUSD':1,
                         'GBPUSD':1,
@@ -294,7 +344,7 @@ elif(method == 2):
                         'USDJPY':1,
                         'EURGBP':1}
     
-    roll_dict =        {'EURUSD':24*15,
+    roll_dict =        {'EURUSD':12,
                         'GBPUSD':24*10,
                         'AUDUSD':24*4,
                         'NZDUSD':24*6,
@@ -303,15 +353,15 @@ elif(method == 2):
                         'USDJPY':24*15,
                         'EURGBP':24*10}
     
-    #x = 24*10
-    #roll_dict =        {'EURUSD':x,
-    #                    'GBPUSD':x,
-    #                    'AUDUSD':24*15,
-    #                    'NZDUSD':24*10,
-    #                    'USDCAD':24*10,
-    #                    'USDCHF':24*10,
-    #                    'USDJPY':24*10,
-    #                    'EURGBP':24*10}
+    x = 24*10
+    roll_dict =        {'EURUSD':12,
+                        'GBPUSD':12,
+                        'AUDUSD':12,
+                        'NZDUSD':12,
+                        'USDCAD':12,
+                        'USDCHF':12,
+                        'USDJPY':12,
+                        'EURGBP':12}
     
     
 
@@ -356,8 +406,8 @@ for symbol in symbols_df:
         
     
 
-stop = -0.5
-limit = 0.15
+stop = -0.00015
+limit = 0.0075
 sums = pd.DataFrame()
 
 for symbol in symbols_df:
@@ -384,47 +434,62 @@ for symbol in symbols_df:
     
     for index, item in enumerate(symbol_entries):   
         
-        stop_flag = 0
+        stop_flag = False
+        limit_flag = False
         
         
         
         
         if(symbol_entries[index] < 0):
-            diff_open = symbols_df[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() + symbol_entries[index]
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() + symbol_entries[index]
+            stop_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmin()
             if(np.abs(diff_open) > np.abs(stop)):
-                print('stop: ', diff_open)
+                #print('stop: ', diff_open)
                 symbol_net['net'].iloc[index] = stop
-                stop_flag = 1
+                stop_flag = True
                 
         if(symbol_entries[index] > 0):
-            diff_open = symbols_df[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() - symbol_entries[index]
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() - symbol_entries[index]
+            stop_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmax()
             if(np.abs(diff_open) > np.abs(stop)):
-                print('stop: ', diff_open)
+                #print('stop: ', diff_open)
                 symbol_net['net'].iloc[index] = stop
-                stop_flag = 1
-                
-        if(stop_flag == 0):     
-            if(symbol_entries[index] < 0):
-                diff_open = symbols_df[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() + symbol_entries[index]
-                if(np.abs(diff_open) > np.abs(limit)):
-                    print('limit: ', diff_open)
-                    symbol_net['net'].iloc[index] = limit
-            
-            
-            if(symbol_entries[index] > 0):
-                diff_open = symbols_df[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() - symbol_entries[index]
-                if(np.abs(diff_open) > np.abs(limit)):
-                    print('limit: ', diff_open)
-                    symbol_net['net'].iloc[index] = limit
+                stop_flag = True
+        
+        #if(stop_flag == 0):  
+        
+        if(symbol_entries[index] < 0):
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() + symbol_entries[index]
+            limit_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmax()
+            if(np.abs(diff_open) > np.abs(limit)):
+                #print('Short limit: ', diff_open)
+                symbol_net['net'].iloc[index] = limit
+                limit_flag = True
+        
+        
+        if(symbol_entries[index] > 0):
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() - symbol_entries[index]
+            limit_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmin()
+            if(np.abs(diff_open) > np.abs(limit)):
+                #print('Long limit: ', diff_open, limit)
+                symbol_net['net'].iloc[index] = limit
+                limit_flag = True
                     
+        if(stop_flag == True & limit_flag ==True):
             
+            if(stop_time < limit_time):
+                symbol_net['net'].iloc[index] = stop
+            elif(stop_time > limit_time):
+                symbol_net['net'].iloc[index] = limit
+            else:
+                print('conflict')
                 
                 
 
                 
                 
     #symbol_net[symbol_net < stop] = stop
-    print(symbol, "sum", symbol_net.sum().values)
+    print(symbol, "sum", (symbol_net['net']-.00025).sum())
     symbol_net['pair'] = symbol
     sums = sums.append(symbol_net)
     
@@ -445,7 +510,7 @@ print('mean = ', sums['net'].mean())
 
 plot_df_net_plot = plot_df_net[plot_df_net_dly_on_hr.add(plot_df_net).abs() > 0].fillna(0)
 
-plot_each = True
+plot_each = False
 time_start = '2000-03'
 if(plot_each == True):
     
