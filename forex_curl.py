@@ -187,7 +187,7 @@ roll = 1
 shift = 1
 #stop = -0.025
 
-
+"""
 
 # for diff method - daily
 diff_thresh_dict = {'EURUSD':0.0008,
@@ -277,7 +277,7 @@ for symbol in symbols_loop_df:
     
 plot_df_net_loop = plot_df_net_loop.ffill()    
 plot_df_net_dly = plot_df_net_loop.copy()
-"""
+
 
 method = 2
 
@@ -353,7 +353,6 @@ elif(method == 2):
                         'USDJPY':24*15,
                         'EURGBP':24*10}
     
-    x = 24*10
     roll_dict =        {'EURUSD':12,
                         'GBPUSD':12,
                         'AUDUSD':12,
@@ -406,8 +405,8 @@ for symbol in symbols_df:
         
     
 
-stop = -0.00015
-limit = 0.0075
+stop = -0.00025
+limit = 0.005
 sums = pd.DataFrame()
 
 for symbol in symbols_df:
