@@ -19,8 +19,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from scipy.optimize import least_squares
-from scipy.optimize import minimize
 
 # import yahoo finance data
 import yfinance as yf
@@ -138,10 +136,6 @@ for symbol in symbol_list_den:
     
 symbols_df_1m = symbols_df_1m/symbols_df_1m.iloc[0]
 symbols_df_1m.index = pd.to_datetime(symbols_df_1m.index)
-symbols_df = symbols_df_1m.resample('h').first().dropna()
-
-symbols_df_dly = symbols_df_1m.resample('d').first().dropna()
-
 
 #%%
 
@@ -287,7 +281,7 @@ diff_thresh_dict = {'EURUSD':x,
 
 
 x = 5
-diff_range_dict = { 'EURUSD':x*25,
+diff_range_dict = { 'EURUSD':x*30,
                     'GBPUSD':x*20,
                     'AUDUSD':x*20,
                     'NZDUSD':x*40,
@@ -296,7 +290,7 @@ diff_range_dict = { 'EURUSD':x*25,
                     'USDJPY':x*25,
                     'EURGBP':x*25}
 #x = 5*26
-diff_range_2_dict ={'EURUSD':x*25,
+diff_range_2_dict ={'EURUSD':x*30,
                     'GBPUSD':x*20,
                     'AUDUSD':x*40,
                     'NZDUSD':x*1,
@@ -314,60 +308,59 @@ for symbol in symbols_loop_df:
     plot_df_net_loop[symbol] = np.sign(symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
     plot_df_net_loop[symbol][symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift).abs() < diff_thresh_dict[symbol]] = float('NaN')
     
-
+    
 plot_df_net_loop = plot_df_net_loop.ffill()    
 plot_df_net_dly = plot_df_net_loop.copy()
 
 
-method = 1
+method = 2
 
 if(method == 1):
 # for curl method - hourly
-    roll = 1
-    diff_thresh_dict = {'EURUSD':0.02,
-                        'GBPUSD':0.02,
-                        'AUDUSD':0.02,
-                        'NZDUSD':0.02,
-                        'USDCAD':0.02,
-                        'USDCHF':0.02,
-                        'USDJPY':0.02,
-                        'EURGBP':0.02,
-                        'EURGBP':0.02}
+    diff_thresh_dict = {'EURUSD':0.0050,
+                        'GBPUSD':0.0065,
+                        'AUDUSD':0.0065,
+                        'NZDUSD':0.0065,
+                        'USDCAD':0.0035,
+                        'USDCHF':0.0035,
+                        'USDJPY':0.0055,
+                        'EURGBP':0.0050,
+                        'EURGBP':0.0050}
     
     
-    standard_1 = 24*45
-    standard_2 = 24*25
-    standard_3 = 24*20
-    standard_4 = 24*55
-    standard_5 = 24*60
-    standard_temp = standard_5
     
+    diff_range_dict = { 'EURUSD':24*4,
+                        'GBPUSD':24*1,
+                        'AUDUSD':24*5,
+                        'NZDUSD':24*5,
+                        'USDCAD':24*8,
+                        'USDCHF':24*8,
+                        'USDJPY':2*1,
+                        'EURGBP':24*5}
     
-    diff_range_dict = { 'EURUSD':standard_1,
-                        'GBPUSD':standard_3,
-                        'AUDUSD':standard_4,
-                        'NZDUSD':standard_3,
-                        'USDCAD':standard_5,
-                        'USDCHF':standard_temp,
-                        'USDJPY':standard_1,
-                        'EURGBP':standard_1
-                        }
-
+    diff_range_dict = { 'EURUSD':24*4,
+                        'GBPUSD':24*1,
+                        'AUDUSD':24*5,
+                        'NZDUSD':24*5,
+                        'USDCAD':24*8,
+                        'USDCHF':24*10,
+                        'USDJPY':2*1,
+                        'EURGBP':24*5}
     x = 1
-    diff_range_2_dict ={'EURUSD':standard_1,
-                        'GBPUSD':standard_3,
-                        'AUDUSD':standard_4,
-                        'NZDUSD':standard_3,
-                        'USDCAD':standard_5,
-                        'USDCHF':standard_temp,
-                        'USDJPY':standard_1,
-                        'EURGBP':standard_1
+    diff_range_2_dict ={'EURUSD':x*1,
+                        'GBPUSD':x*1,
+                        'AUDUSD':x*1,
+                        'NZDUSD':x*1,
+                        'USDCAD':x*1,
+                        'USDCHF':x*1,
+                        'USDJPY':x*1,
+                        'EURGBP':x*1
                         }
-    direction = 1
+    direction = -1
 
 elif(method == 2):
     # for diff method - hourly
-    diff_thresh_dict = {'EURUSD':0.005,
+    diff_thresh_dict = {'EURUSD':0.00075,
                         'GBPUSD':0.0008,
                         'AUDUSD':0.00065,
                         'NZDUSD':0.00065,
@@ -415,68 +408,33 @@ if(method < 2):
     # curl
     print('curl')
     for symbol in symbols_df:
-        plot_df_net_loop[symbol] = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol])).rolling(1).mean().diff()
-        fft = np.fft.fft(plot_df_net_loop[symbol].fillna(0).values)
-        filt = int(1.08e-3*len(fft))
-        fft_filtered = fft
-        fft_filtered[filt:-filt] = 0
-        curl_data_filt = (np.fft.ifft(fft_filtered))
-        curl_data_filt_df = pd.Series(curl_data_filt, index = plot_df_net_loop.index)
-        plot_df_net_loop[symbol] = np.real(curl_data_filt_df)
-        plot_df_net_loop = np.sign((plot_df_net_loop))
-        #plot_df_net_loop[symbol][symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift).rolling(standard_1).mean().diff().abs() <  diff_thresh_dict[symbol]] = float('NaN')
+        plot_df_net_loop[symbol] = np.sign(symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
+        plot_df_net_loop[symbol][symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift).abs() < diff_thresh_dict[symbol]] = float('NaN')
     
 else:
     # diff
     for symbol in symbols_df:
         plot_df_net_loop[symbol] = np.sign(symbols_loop_df[symbol].diff(diff_range_dict[symbol]).rolling(roll_dict[symbol]).mean())
         plot_df_net_loop[symbol][symbols_loop_df[symbol].diff(diff_range_dict[symbol]).rolling(roll_dict[symbol]).mean().abs() < diff_thresh_dict[symbol]] = float('NaN')
+plot_df_net_loop = plot_df_net_loop.ffill()
+
+end = len(plot_df_net_loop)
+np.random.randint(0,2,size=end)
+indices = np.random.randint(70,100,size=750).cumsum()
+plot_df_net_loop_random = pd.DataFrame(index = plot_df_net_loop.index, columns = plot_df_net_loop.columns)
+plot_df_net_loop_random_vals = pd.DataFrame(np.random.randint(0,2,size=plot_df_net_loop.shape)*2-1, index = plot_df_net_loop.index, columns = plot_df_net_loop.columns)
+
+for symbol in plot_df_net_loop_random:
+    
+    nth = np.random.randint(69,99)
+    indices = np.random.randint(73,99,size=750).cumsum()
+    #print(symbol, nth)
+    plot_df_net_loop_random[symbol].iloc[indices] = plot_df_net_loop_random_vals[symbol].iloc[indices]
+    plot_df_net_loop_random[symbol] = plot_df_net_loop_random[symbol].ffill()
 
 
 
-#%% find time delta between peaks and plot histogram
-symbol = 'EURGBP'
-
-plot_df_net_loop_test = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol])).rolling(1).mean()
-fft = np.fft.fft(plot_df_net_loop_test.fillna(0).values)
-filt = int(1.08e-3*len(fft))
-fft_filtered = fft
-fft_filtered[filt:-filt] = 0
-curl_data_filt = ((np.fft.ifft(fft_filtered)))
-curl_data_filt_df = pd.Series((curl_data_filt), index = plot_df_net_loop_test.index)
-#curl_data_filt_df.plot()
-
-plot_df_net_loop_peaks = np.sign(curl_data_filt_df.diff())
-plot_df_net_loop_peaks = pd.Series(np.real(plot_df_net_loop_peaks), index = plot_df_net_loop_peaks.index)
-plot_df_net_loop_peaks = plot_df_net_loop_peaks.diff()
-#plot_df_net_loop_peaks.plot()
-
-plot_df_net_loop_peaks = plot_df_net_loop_peaks[plot_df_net_loop_peaks.abs() > 0]
-plot_df_net_loop_peaks = pd.Series(plot_df_net_loop_peaks.index).diff()
-
-for index, peaks in plot_df_net_loop_peaks.iteritems():
-    plot_df_net_loop_peaks.iloc[index] = peaks.days
-    print(peaks.days)
-
-plot_df_net_loop_peaks = plot_df_net_loop_peaks[1:]
-
-
-
-plot_df_net_loop_peaks.plot.hist()
-plot_df_net_loop_peaks.rolling(1).mean().plot()
-#plot_df_net_loop_peaks.sort_values().reset_index(drop = True).cumsum().plot()
-
-
-    #%%
-
-
-plot_df_net_loop = plot_df_net_loop.ffill()#.shift(24*np.random.randint(-5,10))
-
-
-
-
-
-plot_df_net = plot_df_net_loop.copy()
+plot_df_net = plot_df_net_loop_random.copy()
 plot_df_net = plot_df_net*direction
 
 
@@ -485,41 +443,18 @@ plot_df_net_dly_on_hr = plot_df_net_dly.resample('H').ffill()
 plot_df_net_events = np.sign(plot_df_net_dly_on_hr.add(plot_df_net).abs().ffill().diff())
 #plot_df_net_events = np.sign(plot_df_net.diff())
 
-"""
-symbol = 'GBPUSD'
-plot_df_net_events[symbol][plot_df_net_events[symbol].abs() >0].iloc[::2].diff().plot()
-test = pd.DataFrame(index = plot_df_net_events.index)
-test['drop'] = plot_df_net_events[symbol][plot_df_net_events[symbol].abs() >0].iloc[::2].diff()
-plot_df_net_events[symbol][test['drop'].abs() > 0] = 0
-plot_df_net_events[symbol][plot_df_net_events[symbol].abs() >0].iloc[::2].diff().plot()
-"""
-
-
-#drop_index = plot_df_net_events[plot_df_net_events.cumsum() == 2]['EURUSD'].dropna().index[0]
-#plot_df_net_events[plot_df_net_events.index == drop_index] = float('NaN')
-
-
 
 plot_df_net_entries = pd.DataFrame()
 plot_df_net_exits = pd.DataFrame()
 for symbol in symbols_df:    
-    if(False):
-        drops = pd.DataFrame(index = plot_df_net_events.index)
-        drops['drop_0'] = plot_df_net_events[symbol][plot_df_net_events[symbol].abs() > 0].iloc[0::2].diff()
-        drops['drop_1'] = plot_df_net_events[symbol][plot_df_net_events[symbol].abs() > 0].iloc[1::2].diff()
-        
-        plot_df_net_events[symbol][drops['drop_0'].abs() > 0] = 0
-        plot_df_net_events[symbol][drops['drop_1'].abs() > 0] = 0
-        
     plot_df_net_entries = pd.concat([plot_df_net_entries, plot_df_net[symbol][plot_df_net_events[symbol] > 0]], axis = 1)
     plot_df_net_exits = pd.concat([plot_df_net_exits, plot_df_net[symbol][plot_df_net_events[symbol] < 0]], axis = 1)
     
         
+    
 
-
-stop = -0.15 #see flag
-limit = 0.15 #see flag
-stop_limit_flag = False
+stop = -0.0005
+limit = 0.0075
 sums = pd.DataFrame()
 
 for symbol in symbols_df:
@@ -532,7 +467,6 @@ for symbol in symbols_df:
     symbol_exits = plot_df_net_exits[symbol].dropna()
     symbol_exits = symbol_exits[symbol_exits.index > symbol_entries.index[0]]
     if(symbol_entries.index[-1] > symbol_exits.index[-1]):
-        print('clip')
         symbol_exits = pd.concat([symbol_exits, (symbols_df.iloc[[-1]][symbol]*0+1)])
     symbol_exits = symbol_exits*symbols_df[symbol].loc[symbol_exits.index]
     
@@ -545,60 +479,59 @@ for symbol in symbols_df:
     symbol_net = pd.DataFrame(symbol_entries.add((symbol_exits.abs()*-1*np.sign(symbol_entries).values).values))
     symbol_net = symbol_net.rename(columns = {symbol:'net'})
     
-    if(stop_limit_flag):
-        for index, item in enumerate(symbol_entries):   
-            
-            stop_flag = False
-            limit_flag = False
-            
-            
-            
-            
-            if(symbol_entries[index] < 0):
-                diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() + symbol_entries[index]
-                stop_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmin()
-                if(np.abs(diff_open) > np.abs(stop)):
-                    #print('stop: ', diff_open)
-                    symbol_net['net'].iloc[index] = stop
-                    stop_flag = True
-                    
-            if(symbol_entries[index] > 0):
-                diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() - symbol_entries[index]
-                stop_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmax()
-                if(np.abs(diff_open) > np.abs(stop)):
-                    #print('stop: ', diff_open)
-                    symbol_net['net'].iloc[index] = stop
-                    stop_flag = True
-            
-            #if(stop_flag == 0):  
-            
-            if(symbol_entries[index] < 0):
-                diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() + symbol_entries[index]
-                limit_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmax()
-                if(np.abs(diff_open) > np.abs(limit)):
-                    #print('Short limit: ', diff_open)
-                    symbol_net['net'].iloc[index] = limit
-                    limit_flag = True
-            
-            
-            if(symbol_entries[index] > 0):
-                diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() - symbol_entries[index]
-                limit_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmin()
-                if(np.abs(diff_open) > np.abs(limit)):
-                    #print('Long limit: ', diff_open, limit)
-                    symbol_net['net'].iloc[index] = limit
-                    limit_flag = True
-                        
-            if(stop_flag == True & limit_flag ==True):
+    for index, item in enumerate(symbol_entries):   
+        
+        stop_flag = False
+        limit_flag = False
+        
+        
+        
+        
+        if(symbol_entries[index] < 0):
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() + symbol_entries[index]
+            stop_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmin()
+            if(np.abs(diff_open) > np.abs(stop)):
+                #print('stop: ', diff_open)
+                symbol_net['net'].iloc[index] = stop
+                stop_flag = True
                 
-                if(stop_time < limit_time):
-                    symbol_net['net'].iloc[index] = stop
-                elif(stop_time > limit_time):
-                    symbol_net['net'].iloc[index] = limit
-                else:
-                    print('conflict')
+        if(symbol_entries[index] > 0):
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() - symbol_entries[index]
+            stop_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmax()
+            if(np.abs(diff_open) > np.abs(stop)):
+                #print('stop: ', diff_open)
+                symbol_net['net'].iloc[index] = stop
+                stop_flag = True
+        
+        #if(stop_flag == 0):  
+        
+        if(symbol_entries[index] < 0):
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].max() + symbol_entries[index]
+            limit_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmax()
+            if(np.abs(diff_open) > np.abs(limit)):
+                #print('Short limit: ', diff_open)
+                symbol_net['net'].iloc[index] = limit
+                limit_flag = True
+        
+        
+        if(symbol_entries[index] > 0):
+            diff_open = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].min() - symbol_entries[index]
+            limit_time = symbols_df_1m[symbol].loc[symbol_entries.index[index]:symbol_exits.index[index]].idxmin()
+            if(np.abs(diff_open) > np.abs(limit)):
+                #print('Long limit: ', diff_open, limit)
+                symbol_net['net'].iloc[index] = limit
+                limit_flag = True
                     
-                    
+        if(stop_flag == True & limit_flag ==True):
+            
+            if(stop_time < limit_time):
+                symbol_net['net'].iloc[index] = stop
+            elif(stop_time > limit_time):
+                symbol_net['net'].iloc[index] = limit
+            else:
+                print('conflict')
+                
+                
 
                 
                 
@@ -635,7 +568,7 @@ if(plot_each == True):
         #test['pair_roll'] = symbols_df[pair].rolling(roll).mean()
         test['pair'] = symbols_df[pair]
         test[time_start:].plot()
-        #ax.legend()
+        ax.legend()
     
 ax = plt.figure()
 for pair in plot_df_net:
@@ -643,129 +576,7 @@ for pair in plot_df_net:
     test['net'][time_start:].cumsum().plot()
 
 ax.legend()
-
-
-#%% extra visualizations
-time_start = '2013-01-15'
-time_end = '2022-03-02'
-
-symbol = 'AUDUSD'
-curl_data = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
-curl_data = curl_data[time_start:time_end]
-
-fft = np.fft.fft(curl_data.dropna().values)
-filt = int(1.08e-3*len(fft))
-fft_filtered = fft
-fft_filtered[filt:-filt] = 0
-curl_data_filt = np.fft.ifft(fft_filtered)
-curl_data_filt_df = (pd.Series(np.real(curl_data_filt), index = curl_data.dropna().index))
-#curl_data_filt_df.plot()
-
-
-plot_curl_pair_df = pd.DataFrame()
-plot_curl_pair_df['curl_fft'] = curl_data_filt_df/curl_data_filt_df.max()
-plot_curl_pair_df['curl'] = curl_data/curl_data.max()
-plot_curl_pair_df['sign'] = np.sign(curl_data_filt_df.diff())
-plot_curl_pair_df['pair'] = symbols_df[symbol]
-
-T0 = 320
-f0 = 1/T0
-length = len(curl_data)
-x_vals = np.arange(0, length, 1)
-offset = 100
-
-
-wave_plot = np.sin(f0*x_vals+ offset)
-
-
-#plot_curl_pair_df['wave'] = wave_plot
-
-
-
-
-plot_curl_pair_df['pair'][:].plot()
-plot_curl_pair_df['curl_fft'][:].shift(0).plot(secondary_y = True)
-#(plot_curl_pair_df['curl_fft'][:].shift(24*95)).plot(secondary_y = True)
-plot_curl_pair_df['curl'][:].rolling(1).mean().shift(0).plot(secondary_y = True)
-#plot_curl_pair_df['wave'][:].rolling(1).mean().shift(24*20).plot(secondary_y = True)
-
-#plot_curl_pair_df['curl'][:].rolling(24*0).mean().shift(0).plot(secondary_y = True)
-
-plot_curl_pair_df['sign'][:].shift(0).plot(secondary_y = True)
-
-
-
-#plot_curl_pair_df['sign'].plot(secondary_y = True)
-
-#%% attempt to fit frequency modulated sine wave (too sensitive, doesn't converge)
-
-
-"""
-
-
-c1 = 0
-c2 = 0
-c3 = 0
-x1 = 0
-x2 = 0
-x3 = 0
-
-
-def wave(f0, c1, c2, c3, x1, x2, x3, offset, x):
-    #print(x)
-    #print(f0, c1, c2, c3, offset )
     
-    f = f0 + c1*(x-x1) +c2*(x-x2)**2 + c3*(x-x3)**3 
-    wave = np.sin(-f*x_vals - offset)    
-    return wave
-
-#wave = wave(f0, c1, c2, c3, x)
-
-#f0 = np.arange(0, (1/T0), (1/T)/len(curl_data) )
-
-
-T_upper = 180
-T_lower = 260
-offset_upper = 4000
-offset_lower = -4000
-
-
-p0 = np.array((f0, c1, c2, c3, x1, x2, x3, offset))
-
-p_bound_upper = np.array((1/T_upper, 1e-8, 1e-11, 1e-15, 8000,8000,8000, 8000))
-p_bound_upper[-1] = offset_upper
-p_bound_lower = np.array((1/T_lower, 0, -1e-11, -1e-15, -8000, -8000, -8000, -8000))
-p_bound_lower[-1] = offset_lower
-
-
-p_bounds = tuple(zip(-p_bound_upper, p_bound_upper))
-#for idx, each in enumerate(p0):
-#    p_bounds.append((1/T_lower, 1/T_upper))
-#p_bounds[-1] = (offset_lower, offset_upper)
-
-
-
-def fun(p0, x_vals):
-    wave_0 = wave(p0[0], p0[1], p0[2], p0[3], p0[4], p0[5], p0[6], p0[7], x_vals)
-    diff = (wave_0 - curl_data_filt_df/curl_data_filt_df.max()).abs().sum()
-    print(diff)
-    return diff
-
-
-
-test = minimize(fun, p0, args = (x_vals), bounds = p_bounds)
-
-
-#plt.plot(wave(test.x[0], test.x[1], test.x[2], test.x[3], test.x[4], x_vals))
-#%%
-#(wave(test.x[0], test.x[1]*1, test.x[2]*1, test.x[3]*1, test.x[4]*1, test.x[5], test.x[6], test.x[7], x_vals) - curl_data_filt_df/curl_data_filt_df.max()).plot()
-plt.plot(curl_data_filt_df/curl_data_filt_df.max())
-wave_plot = wave(test.x[0], test.x[1], test.x[2], test.x[3], test.x[4], test.x[5], test.x[6], test.x[7], x_vals)
-wave_pd = pd.DataFrame(wave_plot, index = curl_data.index)
-#plt.plot(wave_pd)
-plt.plot(curl_data*10)
-#%%
-"""
 
 
 #%%
@@ -786,7 +597,7 @@ method = 2
 if(method == 1):
     #hourly - curl
     
-    roll = 5
+    
     # for curl method
     diff_thresh_dict = {'EURUSD':0.0050,
                         'GBPUSD':0.0065,
