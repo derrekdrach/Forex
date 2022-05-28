@@ -306,7 +306,9 @@ diff_range_2_dict ={'EURUSD':x*25,
                     'EURGBP':x*25
                     }
 
-direction = 1
+
+
+#direction = 1
 
 plot_df_net_loop = symbols_df_dly.copy()
 symbols_loop_df = symbols_df_dly.copy()
@@ -340,10 +342,11 @@ if(method == 1):
     standard_3 = 24*20
     standard_4 = 24*55
     standard_5 = 24*60
+    standard_6 = 24*35
     standard_temp = standard_5
     
     
-    diff_range_dict = { 'EURUSD':standard_1,
+    diff_range_dict = { 'EURUSD':standard_5,
                         'GBPUSD':standard_3,
                         'AUDUSD':standard_4,
                         'NZDUSD':standard_3,
@@ -354,15 +357,26 @@ if(method == 1):
                         }
 
     x = 1
-    diff_range_2_dict ={'EURUSD':standard_1,
-                        'GBPUSD':standard_3,
-                        'AUDUSD':standard_4,
-                        'NZDUSD':standard_3,
-                        'USDCAD':standard_5,
-                        'USDCHF':standard_temp,
-                        'USDJPY':standard_1,
-                        'EURGBP':standard_1
-                        }
+    diff_range_2_dict = diff_range_dict
+                        #{'EURUSD':standard_1,
+                        #'GBPUSD':standard_3,
+                        #'AUDUSD':standard_4,
+                        #'NZDUSD':standard_3,
+                        #'USDCAD':standard_5,
+                        #'USDCHF':standard_temp,
+                        #'USDJPY':standard_1,
+                        #'EURGBP':standard_1
+                        #}
+    standard_1 = 15e-3
+    fft_filt_dict = {'EURUSD':standard_1,
+                    'GBPUSD':standard_1,
+                    'AUDUSD':standard_1,
+                    'NZDUSD':standard_1,
+                    'USDCAD':standard_1,
+                    'USDCHF':standard_1,
+                    'USDJPY':standard_1,
+                    'EURGBP':standard_1
+                    }
     direction = 1
 
 elif(method == 2):
@@ -417,7 +431,8 @@ if(method < 2):
     for symbol in symbols_df:
         plot_df_net_loop[symbol] = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol])).rolling(1).mean().diff()
         fft = np.fft.fft(plot_df_net_loop[symbol].fillna(0).values)
-        filt = int(1.08e-3*len(fft))
+        filt = fft_filt_dict[symbol]
+        filt = int(filt*len(fft))
         fft_filtered = fft
         fft_filtered[filt:-filt] = 0
         curl_data_filt = (np.fft.ifft(fft_filtered))
@@ -435,11 +450,11 @@ else:
 
 
 #%% find time delta between peaks and plot histogram
-symbol = 'EURGBP'
+symbol = 'EURUSD'
 
 plot_df_net_loop_test = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol])).rolling(1).mean()
 fft = np.fft.fft(plot_df_net_loop_test.fillna(0).values)
-filt = int(1.08e-3*len(fft))
+filt = int(10e-3*len(fft))
 fft_filtered = fft
 fft_filtered[filt:-filt] = 0
 curl_data_filt = ((np.fft.ifft(fft_filtered)))
@@ -456,21 +471,21 @@ plot_df_net_loop_peaks = pd.Series(plot_df_net_loop_peaks.index).diff()
 
 for index, peaks in plot_df_net_loop_peaks.iteritems():
     plot_df_net_loop_peaks.iloc[index] = peaks.days
-    print(peaks.days)
+    #print(peaks.days)
 
 plot_df_net_loop_peaks = plot_df_net_loop_peaks[1:]
 
 
 
-plot_df_net_loop_peaks.plot.hist()
-plot_df_net_loop_peaks.rolling(1).mean().plot()
+plot_df_net_loop_peaks.plot.hist(bins = 40)
+#plot_df_net_loop_peaks.rolling(1).mean().plot()
 #plot_df_net_loop_peaks.sort_values().reset_index(drop = True).cumsum().plot()
 
 
     #%%
 
 
-plot_df_net_loop = plot_df_net_loop.ffill()#.shift(24*np.random.randint(-5,10))
+plot_df_net_loop = plot_df_net_loop.ffill().shift(6)
 
 
 
@@ -646,58 +661,79 @@ ax.legend()
 
 
 #%% extra visualizations
-time_start = '2013-01-15'
-time_end = '2022-03-02'
+offset_list = np.arange(-24*180,24*180,1)
+offset_merit = 100
+best_offset = 0
+for idx, each in enumerate(offset_list):
+    time_start = pd.to_datetime('2019-04-19') + pd.DateOffset(hours = int(each))
+    time_end = pd.to_datetime('2022-04-19') + pd.DateOffset(hours = 0)
+    
+    symbol = 'EURUSD'
+    curl_data = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
+    curl_data = curl_data[time_start:time_end]
+    
+    fft = np.fft.fft(curl_data.dropna().values)
+    filt = int(15e-3*len(fft))
+    fft_filtered = fft
+    fft_filtered[filt:-filt] = 0
+    curl_data_filt = np.fft.ifft(fft_filtered)
+    curl_data_filt_df = (pd.Series(np.real(curl_data_filt), index = curl_data.dropna().index))
+    #curl_data_filt_df.plot()
+    
+    
 
-symbol = 'AUDUSD'
-curl_data = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
-curl_data = curl_data[time_start:time_end]
+    
+    offset_merit_new = np.abs((curl_data_filt_df[-24*15:] - curl_data[-24*15:]).sum())
+    
+    if(offset_merit_new < offset_merit):
+        print(idx, offset_merit_new)
+        offset_merit = offset_merit_new
+        best_offset = offset_list[idx]
+        
+        plot_curl_pair_df = pd.DataFrame()
+        plot_curl_pair_df['curl_fft'] = curl_data_filt_df/curl_data_filt_df.max()
+        plot_curl_pair_df['curl'] = curl_data/curl_data.max()
+        plot_curl_pair_df['sign'] = np.sign(curl_data_filt_df.diff())
+        plot_curl_pair_df['pair'] = symbols_df[symbol]
+    if(offset_merit_new < 1e-4):
+        break
+    T0 = 320
+    f0 = 1/T0
+    length = len(curl_data)
+    x_vals = np.arange(0, length, 1)
+    offset = 100
+    
+    
+    #wave_plot = np.sin(f0*x_vals+ offset)
+    
+    
+    #plot_curl_pair_df['wave'] = wave_plot
+    
+print("best =", best_offset)
+    
 
-fft = np.fft.fft(curl_data.dropna().values)
-filt = int(1.08e-3*len(fft))
-fft_filtered = fft
-fft_filtered[filt:-filt] = 0
-curl_data_filt = np.fft.ifft(fft_filtered)
-curl_data_filt_df = (pd.Series(np.real(curl_data_filt), index = curl_data.dropna().index))
-#curl_data_filt_df.plot()
+    
 
+plot_curl_pair_df['curl_fft'][:].shift(0).plot(secondary_y = True)
 
-plot_curl_pair_df = pd.DataFrame()
-plot_curl_pair_df['curl_fft'] = curl_data_filt_df/curl_data_filt_df.max()
-plot_curl_pair_df['curl'] = curl_data/curl_data.max()
-plot_curl_pair_df['sign'] = np.sign(curl_data_filt_df.diff())
-plot_curl_pair_df['pair'] = symbols_df[symbol]
-
-T0 = 320
-f0 = 1/T0
-length = len(curl_data)
-x_vals = np.arange(0, length, 1)
-offset = 100
-
-
-wave_plot = np.sin(f0*x_vals+ offset)
-
-
-#plot_curl_pair_df['wave'] = wave_plot
 
 
 
 
 plot_curl_pair_df['pair'][:].plot()
-plot_curl_pair_df['curl_fft'][:].shift(0).plot(secondary_y = True)
 #(plot_curl_pair_df['curl_fft'][:].shift(24*95)).plot(secondary_y = True)
 plot_curl_pair_df['curl'][:].rolling(1).mean().shift(0).plot(secondary_y = True)
 #plot_curl_pair_df['wave'][:].rolling(1).mean().shift(24*20).plot(secondary_y = True)
 
 #plot_curl_pair_df['curl'][:].rolling(24*0).mean().shift(0).plot(secondary_y = True)
 
-plot_curl_pair_df['sign'][:].shift(0).plot(secondary_y = True)
+#plot_curl_pair_df['sign'][:].shift(0).plot(secondary_y = True)
 
 
 
 #plot_curl_pair_df['sign'].plot(secondary_y = True)
 
-#%% attempt to fit frequency modulated sine wave (too sensitive, doesn't converge)
+    #%% attempt to fit frequency modulated sine wave (too sensitive, doesn't converge)
 
 
 """
