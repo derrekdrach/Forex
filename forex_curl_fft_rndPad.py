@@ -369,7 +369,7 @@ if(method == 1):
                         #'USDJPY':standard_1,
                         #'EURGBP':standard_1
                         #}
-    standard_1 = 5e-3
+    standard_1 = 1e-3
     fft_filt_dict = {'EURUSD':standard_1,
                     'GBPUSD':standard_1,
                     'AUDUSD':standard_1,
@@ -456,23 +456,31 @@ else:
 
 # break to inject data
 #%%
+direction = 1
+new_data_flag = False
 
-plot_df_net_loop = pd.DataFrame()
-plot_df_net_loop['EURUSD'] = plot_curl_pair_df['tail'].copy() #
-#plot_df_net_loop = plot_df_net_loop.ffill().shift(24*2)
+if(new_data_flag == False):
+    plot_df_net = pd.DataFrame()
+    plot_df_net['EURUSD'] = np.sign(plot_curl_pair_df['tail'].diff()).copy() #
+else:
+    #plot_df_net_loop['EURUSD'] = np.sign(curl_fft_slope_series)
+    plot_df_net = pd.DataFrame()
+    #plot_df_net = plot_df_net_loop.ffill().shift(24*10*0).copy()
+    plot_df_net = np.sign(plot_df_net_loop.ffill().shift(24*0).diff()).copy()
 
 
 
 
 
-plot_df_net = plot_df_net_loop.copy()
+#plot_df_net = plot_df_net_loop.ffill().shift(24*10*0).copy()
 plot_df_net = plot_df_net*direction
 
 
-plot_df_net_dly_on_hr = plot_df_net_dly.resample('H').ffill()
+#plot_df_net_dly_on_hr = plot_df_net_dly.resample('H').ffill()
 #plot_df_net_sum = plot_df_net_dly_on_hr.add(plot_df_net)
-plot_df_net_events = np.sign(plot_df_net_dly_on_hr.add(plot_df_net).abs().ffill().diff())
-plot_df_net_events = plot_df_net_events.loc[plot_df_net.index]
+#plot_df_net_events = np.sign(plot_df_net_dly_on_hr.add(plot_df_net).abs().ffill().diff())
+#plot_df_net_events = plot_df_net_events.loc[plot_df_net.index]
+plot_df_net_events = plot_df_net
 plot_df_net_events = plot_df_net_events[~plot_df_net_events.index.duplicated(keep = 'first')]
 #plot_df_net_events = np.sign(plot_df_net.diff())
 
@@ -494,19 +502,14 @@ plot_df_net_events[symbol][plot_df_net_events[symbol].abs() >0].iloc[::2].diff()
 plot_df_net_entries = pd.DataFrame()
 plot_df_net_exits = pd.DataFrame()
 for symbol in symbols_df:    
-    if(False):
-        drops = pd.DataFrame(index = plot_df_net_events.index)
-        drops['drop_0'] = plot_df_net_events[symbol][plot_df_net_events[symbol].abs() > 0].iloc[0::2].diff()
-        drops['drop_1'] = plot_df_net_events[symbol][plot_df_net_events[symbol].abs() > 0].iloc[1::2].diff()
         
-        plot_df_net_events[symbol][drops['drop_0'].abs() > 0] = 0
-        plot_df_net_events[symbol][drops['drop_1'].abs() > 0] = 0
-        #plot_df_net_events = plot_df_net_events.loc[plot_df_net.index]
-        
-    plot_df_net_entries = pd.concat([plot_df_net_entries, plot_df_net[symbol][plot_df_net_events[symbol] > 0]], axis = 1)
-    plot_df_net_exits = pd.concat([plot_df_net_exits, plot_df_net[symbol][plot_df_net_events[symbol] < 0]], axis = 1)
-    
-        
+    plot_df_net_entries = pd.concat([plot_df_net_entries, plot_df_net[symbol][plot_df_net_events[symbol].abs() > 0]], axis = 1)
+    plot_df_net_exits = pd.concat([plot_df_net_exits, plot_df_net_entries[symbol].copy()], axis = 1)
+    #plot_df_net_exits = pd.concat([plot_df_net_exits, plot_df_net[symbol][plot_df_net_events[symbol] < 0]], axis = 1)
+
+plot_df_net_entries = plot_df_net_entries[~plot_df_net_entries.index.duplicated(keep = 'first')]    
+plot_df_net_exits = plot_df_net_exits[~plot_df_net_exits.index.duplicated(keep = 'first')]
+
 
 
 stop = -0.15 #see flag
@@ -523,9 +526,9 @@ for symbol in symbols_df:
     
     symbol_exits = plot_df_net_exits[symbol].dropna()
     symbol_exits = symbol_exits[symbol_exits.index > symbol_entries.index[0]]
-    if(symbol_entries.index[-1] > symbol_exits.index[-1]):
+    if(symbol_entries.index[-1] >= symbol_exits.index[-1]):
         print('clip')
-        symbol_exits = pd.concat([symbol_exits, (symbols_df.iloc[[-1]][symbol]*0+1)])
+        symbol_exits = pd.concat([symbol_exits, (symbols_df.loc[[plot_df_net.index[-1]]][symbol]*0+1)])
     symbol_exits = symbol_exits*symbols_df[symbol].loc[symbol_exits.index]
     
     
@@ -615,7 +618,7 @@ print('mean = ', sums['net'].mean())
 
 
 
-
+#%%
 plot_df_net_plot = plot_df_net[plot_df_net_dly_on_hr.add(plot_df_net).abs() > 0].fillna(0)
 #plot_df_net_plot = plot_df_net_dly_on_hr.copy()
 
@@ -645,14 +648,15 @@ ax.legend()
 
 symbol = 'EURUSD'
 curl_data_init = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
-curl_fft_slope = pd.DataFrame(columns = np.arange(-48,1,6))#np.zeros(len(curl_data_init))
+hour_group = np.arange(-48,1,1)
+curl_fft_slope = pd.DataFrame(columns = hour_group)#np.zeros(len(curl_data_init))
 #curl_fft_slope = np.zeros(len(curl_data_init))
 curl_fft_slope_merit = np.zeros(len(curl_data_init))
-end_init = '2022-01-01'
-end_final = '2022-05-20'
+end_init = '2012-05-01'
+end_final = '2022-05-01'
 
-region_of_interest = curl_data_init.loc[end_init:end_final:6].index
-filt_val = 20e-3
+region_of_interest = curl_data_init.loc[end_init:end_final:1].index
+filt_val = 1e-3
 for idx_1, end_datetime in enumerate(region_of_interest):
     start_offset_list = np.arange(-1,-360*24,-1)
     start_offset_list = random.sample(start_offset_list.tolist(), 359*24)
@@ -689,13 +693,13 @@ for idx_1, end_datetime in enumerate(region_of_interest):
         
     
         
-        offset_merit_new = np.abs((curl_data_filt_df[-24*20:] - curl_data[-24*20:]).sum())
+        offset_merit_new = np.abs((curl_data_filt_df[-24*20:] - curl_data[-24*20:]).sum()) #hours
         
         if(offset_merit_new < start_offset_merit):
             start_offset_merit = offset_merit_new
             best_offset = start_offset_list[idx_2]
     
-        if(offset_merit_new < 1e-1):
+        if(offset_merit_new < 10):
             break
         #T0 = 320
         #f0 = 1/T0
@@ -707,39 +711,57 @@ for idx_1, end_datetime in enumerate(region_of_interest):
     #plot_curl_pair_df['curl'] = curl_data/curl_data.max()
     #plot_curl_pair_df['sign'] = np.sign(curl_data_filt_df.diff())
     #plot_curl_pair_df['pair'] = symbols_df[symbol]
-    curl_fft_slope.loc[end_datetime] = ((curl_data_filt_df/curl_data_filt_df.abs().max()).diff().iloc[np.arange(-49,-0,6)].values)
+    curl_fft_slope.loc[end_datetime] = ((curl_data_filt_df/curl_data_filt_df.abs().max()).diff().iloc[hour_group - 1].values)
 
     #curl_fft_slope[idx_1] = (curl_data_filt_df/curl_data_filt_df.abs().max()).diff()[-12]
     curl_fft_slope_merit[idx_1] = offset_merit_new
-    print(idx_1, "/", len(region_of_interest), ":   ", offset_merit_new, ":   ", curl_fft_slope[-36][end_datetime])
+    print(idx_1, "/", len(region_of_interest), ":   ", offset_merit_new, ":   ", curl_fft_slope[-6][end_datetime])
 
 plot_curl_pair_df = pd.DataFrame()
 plot_curl_pair_df['curl_fft'] = curl_data_filt_df/curl_data_filt_df.abs().max()
 plot_curl_pair_df['curl'] = curl_data/curl_data.max()
 plot_curl_pair_df['sign'] = np.sign(curl_data_filt_df.diff())
 plot_curl_pair_df['pair'] = symbols_df[symbol]
-        #wave_plot = np.sin(f0*x_vals+ offset)
-        
+
+
+curl_fft_slope_copy = curl_fft_slope.copy()        
+#wave_plot = np.sin(f0*x_vals+ offset)
+
         
         #plot_curl_pair_df['wave'] = wave_plot
         
     #print("best =", best_offset)
 
 #%%
-np.sign(curl_fft_slope[[-12]]).plot()
-#(curl_fft_slope).plot()
+#np.sign(curl_fft_slope[[-12]]).plot()
+(curl_fft_slope).plot()
 
 #curl_fft_slope.mean(axis = 1).plot()
 #symbols_df[symbol].loc[curl_fft_slope.index].plot(secondary_y = True)
-(curl_data_filt_df/curl_data_filt_df.abs().max()).loc['2022-01-01':'2022-05-20'].plot(secondary_y = True)
+#(curl_data_filt_df/curl_data_filt_df.abs().max()).loc['2022-01-01':'2022-01-30'].plot(secondary_y = True)
 
 #%% re-format to view a static timestamp from multiple future hours.
-curl_fft_slope_shift = curl_fft_slope[[-48, -42, -36, -30, -24, -18, -12]].copy()
+
+curl_fft_slope_shift = curl_fft_slope_copy.iloc[:,-192:-1].copy()
+max_shift = curl_fft_slope_shift.columns[0]
 for idx_1, item in curl_fft_slope_shift.iteritems():
-    curl_fft_slope_shift[idx_1] = curl_fft_slope_shift[idx_1].shift(int(idx_1/6))
-curl_fft_slope_shift.mean(axis = 1).plot()
+    curl_fft_slope_shift[idx_1] = curl_fft_slope_shift[idx_1].shift(-int(max_shift-idx_1))
+
+np.sign(curl_fft_slope_shift.mean(axis = 1).rolling(1).mean()).plot()
+symbols_df[symbol].loc[curl_fft_slope.index].plot(secondary_y = True)
+#(curl_data_filt_df/curl_data_filt_df.abs().max()).loc['2022-01-01':'2022-05-20'].plot(secondary_y = True)
+
 #curl_fft_slope_shift.plot()
+#%%
+#curl_fft_slope_shift = curl_fft_slope_copy.copy()
+
+#curl_fft_slope_shift = curl_fft_slope_shift.iloc[:,-36:-30].copy()
+#curl_fft_slope_shift.iloc[:,-96:-72].mean(axis = 1).plot()
+for idx_1, item in curl_fft_slope_shift.iterrows():    
+    (curl_fft_slope_shift.loc[idx_1].diff()).plot()
+
 #%%  
+curl_fft_slope_shift = curl_fft_slope_copy.iloc[:,-96:-1].copy()
 for idx_1, item in curl_fft_slope_shift.iterrows():
     curl_fft_slope_shift.loc[idx_1].plot()
     
@@ -770,23 +792,40 @@ curl_fft_slope_copy = curl_fft_slope.copy()
 #%%
 curl_fft_slope = curl_fft_slope_copy.copy()
 #%%
+curl_fft_slope_shift = curl_fft_slope_copy.iloc[:,-48:-42].copy()
+max_shift = curl_fft_slope_shift.columns[0]
+#for idx_1, item in curl_fft_slope_shift.iteritems():
+#    curl_fft_slope_shift[idx_1] = curl_fft_slope_shift[idx_1].shift(-int(max_shift-idx_1))
 
     
 #end_init = '2022-02-01'
 #end_final = '2022-03-01'
 #region_of_interest = curl_data_init.loc[end_init:end_final:1].index
 
-curl_fft_slope = curl_fft_slope_copy[-48].copy()
-curl_fft_slope_series = pd.Series(curl_fft_slope).copy()
+#curl_fft_slope_series = curl_fft_slope_copy.iloc[:,-24:-18].mean(axis = 1).copy()
+curl_fft_slope_series = curl_fft_slope_shift.mean(axis = 1).copy()
+#curl_fft_slope_series = curl_fft_slope_copy.iloc[:,-12:-6].mean(axis = 1).copy()
+
+
+#roll_val = 24*10
+#curl_data_init = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol]).shift(shift))
+#curl_fft_slope_series = ((curl_data_init.rolling(1).max() + curl_data_init.rolling(1).min())/2)
+curl_fft_slope_series = curl_fft_slope_series[~curl_fft_slope_series.index.duplicated(keep = 'first')]
+
+
+
+# for 5fft, use 96
+# for 20fft, use 48
+#curl_fft_slope_series = pd.Series(curl_fft_slope).copy()
 curl_fft_slope_series = curl_fft_slope_series[curl_fft_slope_series.abs()>0].rolling(1).mean()
-curl_fft_slope_series.index = region_of_interest[:]
-curl_fft_slope_series[curl_fft_slope_series.abs() < 0.00001 ] = float('Nan')
+#curl_fft_slope_series.index = region_of_interest[:]
+curl_fft_slope_series[curl_fft_slope_series.abs() < 0.002 ] = float('Nan')
 
-
+plot_curl_pair_df = pd.DataFrame()
 plot_curl_pair_df['tail'] = curl_fft_slope_series.copy()
 plot_curl_pair_df['tail'] = plot_curl_pair_df['tail'].ffill()
 plot_curl_pair_df['tail'] = np.sign(plot_curl_pair_df['tail'])
-plot_curl_pair_df['tail'] = np.sign((plot_curl_pair_df['tail'].ffill().rolling(1).mean().shift(-0)))
+plot_curl_pair_df['tail'] = np.sign((plot_curl_pair_df['tail'].ffill().rolling(3).mean().shift(-0)))
 
 
 #curl_fft_merit_series = pd.Series(curl_fft_slope_merit)
@@ -799,14 +838,19 @@ plot_curl_pair_df['tail'] = np.sign((plot_curl_pair_df['tail'].ffill().rolling(1
 plot_curl_pair_df['tail'].plot(secondary_y = True)
 #plot_curl_pair_df['merit'].plot(secondary_y = True)
 
-plot_curl_pair_df['curl_fft'][end_init:].shift(0).plot(secondary_y = True)
-plot_curl_pair_df['pair'] = symbols_df[symbol].loc[end_init:]
-plot_curl_pair_df['pair'][end_init:].plot()
+curl_fft = (curl_data_filt_df/curl_data_filt_df.abs().max()).loc[curl_fft_slope_series.index[0]:curl_fft_slope_series.index[-1]]
+curl_fft = curl_fft[~curl_fft.index.duplicated(keep = 'first')]
+plot_curl_pair_df['curl_fft'] = curl_fft
+
+(plot_curl_pair_df['curl_fft'][:].shift(0)).plot(secondary_y = True)
+plot_curl_pair_df['pair'] = symbols_df[symbol].loc[:]
+plot_curl_pair_df['pair'].plot()
 #(plot_curl_pair_df['curl_fft'][:].shift(24*95)).plot(secondary_y = True)
-plot_curl_pair_df['curl'][end_init:].rolling(1).mean().shift(0).plot(secondary_y = True)
+plot_curl_pair_df['curl'] = (curl_data_init/curl_data_init.max()).loc[curl_fft_slope_series.index[0]: curl_fft_slope_series.index[-1]]
+#(plot_curl_pair_df['curl'][:].rolling(1).mean().shift(0)*4).plot(secondary_y = True)
 #plot_curl_pair_df['wave'][:].rolling(1).mean().shift(24*20).plot(secondary_y = True)
 
-#plot_curl_pair_df['curl'][:].rolling(24*0).mean().shift(0).plot(secondary_y = True)
+plot_curl_pair_df['curl'][:].rolling(1).mean().shift(0).plot(secondary_y = True)
 
 #plot_curl_pair_df['sign'] = plot_curl_pair_df['curl'].rolling(3).mean().diff().copy()
 #plot_curl_pair_df['sign'][plot_curl_pair_df['sign'].abs() < 0.02] = float('Nan')
@@ -818,10 +862,9 @@ plot_curl_pair_df['curl'][end_init:].rolling(1).mean().shift(0).plot(secondary_y
 
 #plot_curl_pair_df['sign'].plot(secondary_y = True)
 
- 
 
 
-#%% find time delta between peaks and plot histogram
+    #%% find time delta between peaks and plot histogram
 symbol = 'EURUSD'
 
 plot_df_net_loop_test = (symbols_loop_df[symbol].rolling(roll).mean().diff(diff_range_dict[symbol]).diff(diff_range_2_dict[symbol])).rolling(1).mean()
